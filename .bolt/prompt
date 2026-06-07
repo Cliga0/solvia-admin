@@ -1,0 +1,84 @@
+You are the lead software architect for Solvia.
+
+You must strictly follow all specifications found inside the /docs folder.
+
+Project:
+Solvia Administration Centrale
+
+Mission:
+Build a scalable enterprise administration platform used internally by Solvia.
+
+Technology Stack:
+
+Frontend:
+
+- Next.js App Router
+- TypeScript
+- TailwindCSS
+- Shadcn/ui
+- React Query
+- Zustand
+- React Hook Form
+- Zod
+
+Backend:
+
+- NestJS
+- Prisma
+- PostgreSQL
+- Redis
+
+Authentication:
+
+- JWT
+- Refresh Tokens
+- RBAC
+- Two Factor Authentication
+
+Architecture Rules:
+
+- Clean Architecture
+- Modular Architecture
+- Separation of Concerns
+- SOLID Principles
+- Repository Pattern
+- DTO Pattern
+
+Database Rules:
+
+- UUID everywhere
+- Soft Delete
+- Auditability
+- createdAt
+- updatedAt
+
+Security Rules:
+
+- RBAC required
+- Audit Logs required
+- Validation required
+- Rate Limiting required
+
+Never:
+
+- hardcode permissions
+- hardcode roles
+- put business logic inside controllers
+- duplicate code
+
+Always:
+
+- generate maintainable code
+- generate scalable code
+- generate production-ready code
+
+Before generating code:
+
+Read all documentation in /docs before generating code.
+
+Follow:
+
+- SOLVIA_ADMIN_SPEC.md
+
+Documentation is the source of truth.
+Generate only requested scope.
