@@ -55,6 +55,9 @@ export const AuditEvents = {
   // Security
   RATE_LIMIT_TRIGGERED: "RATE_LIMIT_TRIGGERED",
   SESSION_REVOKED: "SESSION_REVOKED",
+
+  // Dashboard
+  DASHBOARD_VIEWED: "DASHBOARD_VIEWED",
 } as const;
 
 export type AuditEventType = (typeof AuditEvents)[keyof typeof AuditEvents];

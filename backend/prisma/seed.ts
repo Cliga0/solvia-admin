@@ -27,6 +27,7 @@ const SYSTEM_PERMISSIONS = [
   { code: "audit.read", description: "View audit logs" },
   { code: "system.settings.read", description: "View system settings" },
   { code: "system.settings.update", description: "Update system settings" },
+  { code: "dashboard.read", description: "View dashboard" },
 ] as const;
 
 const ROLE_PERMISSION_MAP: Record<string, string[]> = {
@@ -45,6 +46,7 @@ const ROLE_PERMISSION_MAP: Record<string, string[]> = {
     "audit.read",
     "system.settings.read",
     "system.settings.update",
+    "dashboard.read",
   ],
   PLATFORM_ADMIN: [
     "users.read",
@@ -56,6 +58,7 @@ const ROLE_PERMISSION_MAP: Record<string, string[]> = {
     "permissions.read",
     "system.settings.read",
     "system.settings.update",
+    "dashboard.read",
   ],
   SECURITY_MANAGER: [
     "users.read",
@@ -64,24 +67,29 @@ const ROLE_PERMISSION_MAP: Record<string, string[]> = {
     "permissions.read",
     "audit.read",
     "system.settings.read",
+    "dashboard.read",
   ],
   FINANCE_MANAGER: [
     "users.read",
     "audit.read",
     "system.settings.read",
+    "dashboard.read",
   ],
   SUPPORT_AGENT: [
     "users.read",
     "audit.read",
+    "dashboard.read",
   ],
   CONTENT_MANAGER: [
     "users.read",
     "audit.read",
+    "dashboard.read",
   ],
   ANALYST: [
     "users.read",
     "audit.read",
     "system.settings.read",
+    "dashboard.read",
   ],
 };
 

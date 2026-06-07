@@ -6,6 +6,7 @@ import { AuthModule } from "@/modules/auth/auth.module";
 import { AuditModule } from "@/modules/audit/audit.module";
 import { UsersModule } from "@/modules/users/users.module";
 import { SystemSettingsModule } from "@/modules/system-settings/system-settings.module";
+import { DashboardModule } from "@/modules/dashboard/dashboard.module";
 import { appConfig } from "./config";
 import { SecurityModule } from "./modules/security/security.module";
 import { EventSystemModule } from "./modules/event/event-system.module";
@@ -33,6 +34,7 @@ import { EventSystemModule } from "./modules/event/event-system.module";
     AuditModule,
     UsersModule,
     SystemSettingsModule,
+    DashboardModule,
   ],
 })
 export class AppModule {}
