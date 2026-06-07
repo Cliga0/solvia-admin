@@ -85,6 +85,25 @@ const ROLE_PERMISSION_MAP: Record<string, string[]> = {
   ],
 };
 
+const DEFAULT_SETTINGS = [
+  // PLATFORM
+  { category: "PLATFORM", key: "platform_name", value: "Solvia", valueType: "STRING", description: "Platform display name", isPublic: true, isEditable: true },
+  { category: "PLATFORM", key: "platform_description", value: "Enterprise administration platform for the Solvia ecosystem", valueType: "STRING", description: "Platform description", isPublic: true, isEditable: true },
+  { category: "PLATFORM", key: "support_email", value: "support@solvia.com", valueType: "STRING", description: "Support email address", isPublic: true, isEditable: true },
+  { category: "PLATFORM", key: "support_phone", value: "+33 1 00 00 00 00", valueType: "STRING", description: "Support phone number", isPublic: true, isEditable: true },
+  { category: "PLATFORM", key: "company_name", value: "Solvia", valueType: "STRING", description: "Legal company name", isPublic: true, isEditable: true },
+  // MAINTENANCE
+  { category: "MAINTENANCE", key: "maintenance_enabled", value: "false", valueType: "BOOLEAN", description: "Maintenance mode enabled", isPublic: true, isEditable: true },
+  { category: "MAINTENANCE", key: "maintenance_message", value: "We are performing scheduled maintenance. Please try again later.", valueType: "STRING", description: "Message displayed during maintenance", isPublic: true, isEditable: true },
+  // SECURITY
+  { category: "SECURITY", key: "password_min_length", value: "8", valueType: "NUMBER", description: "Minimum password length", isPublic: false, isEditable: true },
+  { category: "SECURITY", key: "max_login_attempts", value: "10", valueType: "NUMBER", description: "Maximum login attempts before lockout", isPublic: false, isEditable: true },
+  { category: "SECURITY", key: "session_timeout", value: "900", valueType: "NUMBER", description: "Session timeout in seconds", isPublic: false, isEditable: true },
+  // NOTIFICATIONS
+  { category: "NOTIFICATIONS", key: "email_enabled", value: "true", valueType: "BOOLEAN", description: "Email notifications enabled", isPublic: false, isEditable: true },
+  { category: "NOTIFICATIONS", key: "sms_enabled", value: "false", valueType: "BOOLEAN", description: "SMS notifications enabled", isPublic: false, isEditable: true },
+] as const;
+
 async function main() {
   console.log("Seeding system roles...");
   for (const role of SYSTEM_ROLES) {
@@ -137,6 +156,34 @@ async function main() {
         },
       });
     }
+  }
+
+  console.log("Seeding system settings...");
+  for (const setting of DEFAULT_SETTINGS) {
+    await prisma.systemSetting.upsert({
+      where: {
+        category_key: {
+          category: setting.category,
+          key: setting.key,
+        },
+      },
+      update: {
+        value: setting.value,
+        valueType: setting.valueType as any,
+        description: setting.description,
+        isPublic: setting.isPublic,
+        isEditable: setting.isEditable,
+      },
+      create: {
+        category: setting.category as any,
+        key: setting.key,
+        value: setting.value,
+        valueType: setting.valueType as any,
+        description: setting.description,
+        isPublic: setting.isPublic,
+        isEditable: setting.isEditable,
+      },
+    });
   }
 
   console.log("Seed complete.");

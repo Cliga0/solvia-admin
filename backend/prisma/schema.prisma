@@ -141,6 +141,39 @@ model RolePermission {
   @@map("role_permissions")
 }
 
+enum SettingValueType {
+  STRING
+  NUMBER
+  BOOLEAN
+  JSON
+}
+
+enum SettingCategory {
+  PLATFORM
+  BRANDING
+  SECURITY
+  MAINTENANCE
+  NOTIFICATIONS
+}
+
+model SystemSetting {
+  id          String            @id @default(uuid())
+  category    SettingCategory
+  key         String
+  value       String
+  valueType   SettingValueType  @default(STRING)
+  description String?
+  isPublic    Boolean           @default(false)
+  isEditable  Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@unique([category, key])
+  @@index([category])
+  @@index([key])
+  @@map("system_settings")
+}
+
 model AuditLog {
   id           String    @id @default(uuid())
   userId       String?
