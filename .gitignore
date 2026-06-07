@@ -1,0 +1,28 @@
+# dependencies
+node_modules/
+
+# builds backend
+backend/dist/
+
+# builds frontend
+frontend/.next/
+frontend/out/
+
+# logs
+*.log
+
+# env files
+.env
+.env.*
+!.env.example
+
+# NestJS build
+backend/dist/
+backend/*.tsbuildinfo
+
+# Next.js build
+frontend/.next/
+
+# OS
+.DS_Store
+Thumbs.db
