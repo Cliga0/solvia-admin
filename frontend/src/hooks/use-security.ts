@@ -44,7 +44,7 @@ export function useUserTimeline(userId: string) {
 export function useUpdateAlert() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { status: string; description?: string } }) =>
+    mutationFn: ({ id, data }: { id: string; data: { status: string; description?: string; resolutionReason?: string; resolutionNotes?: string } }) =>
       securityService.updateAlert(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["security"] });
@@ -90,6 +90,33 @@ export function useRecalculateRisks() {
     mutationFn: () => securityService.recalculateRisks(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["security"] });
+    },
+  });
+}
+
+export function useSecurityRules() {
+  return useQuery({
+    queryKey: ["security", "rules"],
+    queryFn: () => securityService.getRules(),
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useSecurityRule(id: string) {
+  return useQuery({
+    queryKey: ["security", "rules", id],
+    queryFn: () => securityService.getRule(id),
+    enabled: !!id,
+  });
+}
+
+export function useUpdateSecurityRule() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { name?: string; description?: string; severity?: string; threshold?: number; windowMinutes?: number; enabled?: boolean } }) =>
+      securityService.updateRule(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["security", "rules"] });
     },
   });
 }

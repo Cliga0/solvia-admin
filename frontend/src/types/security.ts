@@ -22,6 +22,10 @@ export interface SecurityAlert {
   createdAt: string;
   resolvedAt: string | null;
   resolvedBy: string | null;
+  resolvedByUserId: string | null;
+  resolvedByEmail: string | null;
+  resolutionReason: string | null;
+  resolutionNotes: string | null;
 }
 
 export interface SecurityIncident {
@@ -29,9 +33,20 @@ export interface SecurityIncident {
   alertId: string | null;
   status: IncidentStatus;
   assignedTo: string | null;
+  assignedToUserId: string | null;
+  assignedToEmail: string | null;
   notes: string | null;
   createdAt: string;
   resolvedAt: string | null;
+}
+
+export interface RiskBreakdown {
+  failedLogins: number;
+  twoFactorFailures: number;
+  passwordResets: number;
+  roleChanges: number;
+  accountDisabled: number;
+  securityIncidents: number;
 }
 
 export interface UserRiskProfile {
@@ -39,6 +54,7 @@ export interface UserRiskProfile {
   riskScore: number;
   riskLevel: RiskLevel;
   lastCalculatedAt: string;
+  breakdown?: RiskBreakdown;
 }
 
 export interface TimelineEntry {
@@ -81,6 +97,12 @@ export interface SecurityDashboardData {
     createdAt: string;
   }[];
   engineMetrics: EngineMetrics;
+  alertsBySeverity: Record<string, number>;
+  alertsByType: Record<string, number>;
+  incidentsByStatus: Record<string, number>;
+  riskDistribution: Record<string, number>;
+  alertsLast24Hours: number;
+  alertsLast7Days: number;
 }
 
 export interface AlertSearchResponse {
@@ -126,3 +148,17 @@ export const ENGINE_STATUS_COLORS: Record<EngineExecutionStatus, string> = {
   FAILED: "bg-error-100 text-error-800",
   IDLE: "bg-muted text-muted-foreground",
 };
+
+export interface SecurityRule {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  alertType: string;
+  severity: AlertSeverity;
+  threshold: number;
+  windowMinutes: number;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}

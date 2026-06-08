@@ -2,6 +2,10 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "@/prisma/prisma.service";
 import { SecurityRedisService } from "../security-redis.service";
 import { EngineExecutionService } from "../engine/engine-execution.service";
+import { AlertMetricsService } from "../metrics/alert-metrics.service";
+import { IncidentMetricsService } from "../metrics/incident-metrics.service";
+import { RiskMetricsService } from "../metrics/risk-metrics.service";
+import { ActivityMetricsService } from "../metrics/activity-metrics.service";
 import { EngineType } from "@prisma/client";
 import { SecurityDashboardDto, EngineMetricsDto } from "../dto";
 
@@ -11,6 +15,10 @@ export class SecurityDashboardService {
     private readonly prisma: PrismaService,
     private readonly redisService: SecurityRedisService,
     private readonly executionService: EngineExecutionService,
+    private readonly alertMetrics: AlertMetricsService,
+    private readonly incidentMetrics: IncidentMetricsService,
+    private readonly riskMetrics: RiskMetricsService,
+    private readonly activityMetrics: ActivityMetricsService,
   ) {}
 
   async getDashboard(): Promise<SecurityDashboardDto> {
@@ -19,46 +27,31 @@ export class SecurityDashboardService {
       return JSON.parse(cached) as SecurityDashboardDto;
     }
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-
     const [
       openAlerts,
       criticalAlerts,
-      activeIncidents,
-      highRiskUsers,
-      failedLoginsToday,
-      securityEventsToday,
       recentAlerts,
       lastDetectionRun,
       lastRiskCalculationRun,
       alertsCreatedToday,
       detectionEngineStatus,
       riskEngineStatus,
+      alertsBySeverity,
+      alertsByType,
+      incidentsByStatus,
+      riskDistribution,
+      alertsLast24Hours,
+      alertsLast7Days,
+      failedLoginsToday,
+      securityEventsToday,
+      activeIncidents,
+      highRiskUsers,
     ] = await Promise.all([
       this.prisma.securityAlert.count({
         where: { status: { in: ["OPEN", "INVESTIGATING"] } },
       }),
       this.prisma.securityAlert.count({
         where: { severity: "CRITICAL", status: { in: ["OPEN", "INVESTIGATING"] } },
-      }),
-      this.prisma.securityIncident.count({
-        where: { status: { in: ["OPEN", "INVESTIGATING"] } },
-      }),
-      this.prisma.userRiskProfile.count({
-        where: { riskLevel: { in: ["HIGH", "CRITICAL"] } },
-      }),
-      this.prisma.auditLog.count({
-        where: {
-          event: "AUTH_LOGIN_FAILED",
-          createdAt: { gte: todayStart },
-        },
-      }),
-      this.prisma.auditLog.count({
-        where: {
-          event: { in: ["AUTH_LOGIN_FAILED", "TWO_FACTOR_FAILED", "PERMISSION_DENIED", "SECURITY_ALERT_CREATED"] },
-          createdAt: { gte: todayStart },
-        },
       }),
       this.prisma.securityAlert.findMany({
         orderBy: { createdAt: "desc" },
@@ -77,6 +70,20 @@ export class SecurityDashboardService {
       this.executionService.getAlertsCreatedToday(),
       this.executionService.getEngineStatus(EngineType.ALERT_DETECTION),
       this.executionService.getEngineStatus(EngineType.RISK_RECALCULATION),
+      this.alertMetrics.getAlertsBySeverity(),
+      this.alertMetrics.getAlertsByType(),
+      this.incidentMetrics.getIncidentsByStatus(),
+      this.riskMetrics.getRiskDistribution(),
+      this.alertMetrics.getAlertsLast24Hours(),
+      this.alertMetrics.getAlertsLast7Days(),
+      this.activityMetrics.getFailedLoginsToday(),
+      this.activityMetrics.getSecurityEventsToday(),
+      this.prisma.securityIncident.count({
+        where: { status: { in: ["OPEN", "INVESTIGATING"] } },
+      }),
+      this.prisma.userRiskProfile.count({
+        where: { riskLevel: { in: ["HIGH", "CRITICAL"] } },
+      }),
     ]);
 
     const engineMetrics: EngineMetricsDto = {
@@ -107,6 +114,12 @@ export class SecurityDashboardService {
         createdAt: a.createdAt,
       })),
       engineMetrics,
+      alertsBySeverity,
+      alertsByType,
+      incidentsByStatus,
+      riskDistribution,
+      alertsLast24Hours,
+      alertsLast7Days,
     };
 
     await this.redisService.cacheDashboard(JSON.stringify(dashboard));

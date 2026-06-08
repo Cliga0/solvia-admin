@@ -114,6 +114,30 @@ export function SecurityOverviewCard({ data }: Props) {
             ))}
           </div>
         )}
+
+        <div className="rounded-md bg-muted/50 p-2 space-y-2">
+          <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+            <Activity className="size-3" /> Analytics
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <p className="text-lg font-semibold leading-none">{data.alertsLast24Hours}</p>
+              <p className="text-xs text-muted-foreground">Alerts (24h)</p>
+            </div>
+            <div>
+              <p className="text-lg font-semibold leading-none">{data.alertsLast7Days}</p>
+              <p className="text-xs text-muted-foreground">Alerts (7d)</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <DistributionBars data={data.alertsBySeverity} label="By Severity" />
+            <DistributionBars data={data.riskDistribution} label="Risk Levels" />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <DistributionBars data={data.alertsByType} label="By Type" />
+            <DistributionBars data={data.incidentsByStatus} label="Incidents" />
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
@@ -157,4 +181,40 @@ function formatTime(dateStr: string | null): string {
   } catch {
     return "";
   }
+}
+
+function DistributionBars({
+  data,
+  label,
+}: {
+  data: Record<string, number>;
+  label: string;
+}) {
+  const entries = Object.entries(data);
+  const max = Math.max(...entries.map(([, v]) => v), 1);
+
+  return (
+    <div>
+      <p className="text-[10px] text-muted-foreground mb-1">{label}</p>
+      <div className="space-y-0.5">
+        {entries.map(([key, value]) => (
+          <div key={key} className="flex items-center gap-1.5">
+            <span className="text-[10px] text-muted-foreground w-14 truncate" title={key}>
+              {key.replace(/_/g, " ")}
+            </span>
+            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary-400 rounded-full"
+                style={{ width: `${(value / max) * 100}%` }}
+              />
+            </div>
+            <span className="text-[10px] tabular-nums">{value}</span>
+          </div>
+        ))}
+        {entries.length === 0 && (
+          <p className="text-[10px] text-muted-foreground">No data</p>
+        )}
+      </div>
+    </div>
+  );
 }

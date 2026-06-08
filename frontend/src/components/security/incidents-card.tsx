@@ -60,7 +60,11 @@ export function IncidentsCard({ incidents }: Props) {
                   Incident {incident.id.slice(0, 8)}
                 </p>
                 <p className="text-[10px] text-muted-foreground">
-                  {incident.assignedTo ? `Assigned: ${incident.assignedTo.slice(0, 8)}` : "Unassigned"}
+                  {incident.assignedToEmail
+                    ? `Assigned: ${incident.assignedToEmail}`
+                    : incident.assignedTo
+                      ? `Assigned: ${incident.assignedTo.slice(0, 8)}`
+                      : "Unassigned"}
                   {" | "}
                   {formatTime(incident.createdAt)}
                 </p>

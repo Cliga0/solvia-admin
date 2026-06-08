@@ -4,6 +4,7 @@ import { AuditService } from "@/modules/audit/audit.service";
 import { AuditEvents, AuditModules } from "@/config";
 import { RiskLevel } from "@prisma/client";
 import { SecurityRedisService } from "../security-redis.service";
+import { RiskBreakdownDto, UserRiskProfileWithBreakdownDto } from "../dto";
 
 const RISK_WINDOW_DAYS = 30;
 
@@ -18,6 +19,12 @@ const SCORING_WEIGHTS = {
 
 const MAX_SCORE = 100;
 
+interface RiskCalculationResult {
+  riskScore: number;
+  riskLevel: RiskLevel;
+  breakdown: RiskBreakdownDto;
+}
+
 @Injectable()
 export class RiskScoringService {
   private readonly logger = new Logger(RiskScoringService.name);
@@ -28,10 +35,7 @@ export class RiskScoringService {
     private readonly redisService: SecurityRedisService,
   ) {}
 
-  async calculateUserRisk(userId: string): Promise<{
-    riskScore: number;
-    riskLevel: RiskLevel;
-  }> {
+  async calculateUserRisk(userId: string): Promise<RiskCalculationResult> {
     const windowStart = new Date(
       Date.now() - RISK_WINDOW_DAYS * 24 * 60 * 60 * 1000,
     );
@@ -82,6 +86,15 @@ export class RiskScoringService {
       this.getIncidentCountForUser(userId, windowStart),
     ]);
 
+    const breakdown: RiskBreakdownDto = {
+      failedLogins,
+      twoFactorFailures,
+      passwordResets,
+      roleChanges,
+      accountDisabled,
+      securityIncidents,
+    };
+
     const rawScore =
       failedLogins * SCORING_WEIGHTS.FAILED_LOGIN +
       twoFactorFailures * SCORING_WEIGHTS.TWO_FACTOR_FAILURE +
@@ -114,36 +127,23 @@ export class RiskScoringService {
       `USER_RISK_RECALCULATED userId=${userId} score=${riskScore} level=${riskLevel}`,
     );
 
-    return { riskScore, riskLevel };
+    return { riskScore, riskLevel, breakdown };
   }
 
-  async getUserRiskProfile(userId: string): Promise<{
-    userId: string;
-    riskScore: number;
-    riskLevel: RiskLevel;
-    lastCalculatedAt: Date;
-  }> {
+  async getUserRiskProfile(userId: string): Promise<UserRiskProfileWithBreakdownDto> {
     const cached = await this.redisService.getCachedRiskProfile(userId);
     if (cached) {
       return JSON.parse(cached);
     }
 
-    let profile = await this.prisma.userRiskProfile.findUnique({
-      where: { userId },
-    });
+    const result = await this.calculateUserRisk(userId);
 
-    if (!profile) {
-      await this.calculateUserRisk(userId);
-      profile = await this.prisma.userRiskProfile.findUniqueOrThrow({
-        where: { userId },
-      });
-    }
-
-    const dto = {
-      userId: profile.userId,
-      riskScore: profile.riskScore,
-      riskLevel: profile.riskLevel,
-      lastCalculatedAt: profile.lastCalculatedAt,
+    const dto: UserRiskProfileWithBreakdownDto = {
+      userId,
+      riskScore: result.riskScore,
+      riskLevel: result.riskLevel,
+      lastCalculatedAt: new Date(),
+      breakdown: result.breakdown,
     };
 
     await this.redisService.cacheRiskProfile(userId, JSON.stringify(dto));

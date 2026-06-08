@@ -76,7 +76,13 @@ export function AlertsTable({ alerts }: Props) {
                   <p className="text-xs font-medium truncate">{alert.title}</p>
                   <p className="text-[10px] text-muted-foreground">
                     {formatTime(alert.createdAt)}
+                    {alert.resolvedByEmail && ` | Resolved by ${alert.resolvedByEmail}`}
                   </p>
+                  {alert.resolutionReason && (
+                    <p className="text-[10px] text-muted-foreground truncate">
+                      {alert.resolutionReason}
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">

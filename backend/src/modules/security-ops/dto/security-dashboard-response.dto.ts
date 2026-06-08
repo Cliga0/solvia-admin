@@ -41,4 +41,10 @@ export class SecurityDashboardDto {
   @ApiProperty() securityEventsToday!: number;
   @ApiProperty({ type: [SecurityDashboardAlertDto] }) recentAlerts!: SecurityDashboardAlertDto[];
   @ApiProperty() engineMetrics!: EngineMetricsDto;
+  @ApiProperty() alertsBySeverity!: Record<string, number>;
+  @ApiProperty() alertsByType!: Record<string, number>;
+  @ApiProperty() incidentsByStatus!: Record<string, number>;
+  @ApiProperty() riskDistribution!: Record<string, number>;
+  @ApiProperty() alertsLast24Hours!: number;
+  @ApiProperty() alertsLast7Days!: number;
 }
