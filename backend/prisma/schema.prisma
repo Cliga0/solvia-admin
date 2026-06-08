@@ -249,6 +249,9 @@ model SecurityAlert {
   resolvedByUserId  String?
   resolutionReason  String?
   resolutionNotes   String?
+  fingerprint       String?
+  occurrences       Int           @default(1)
+  lastSeenAt        DateTime      @default(now())
   incidents         SecurityIncident[]
   resolver          InternalUser? @relation(fields: [resolvedByUserId], references: [id], onDelete: SetNull)
 
@@ -257,6 +260,8 @@ model SecurityAlert {
   @@index([status])
   @@index([createdAt])
   @@index([resolvedByUserId])
+  @@index([fingerprint])
+  @@index([lastSeenAt])
   @@map("security_alerts")
 }
 
@@ -291,6 +296,13 @@ model UserRiskProfile {
   @@index([riskLevel])
   @@index([riskScore])
   @@map("user_risk_profiles")
+}
+
+enum CorrelationStatus {
+  OPEN
+  INVESTIGATING
+  RESOLVED
+  FALSE_POSITIVE
 }
 
 enum EngineType {
@@ -332,10 +344,57 @@ model SecurityRule {
   threshold      Int
   windowMinutes  Int           @default(15)
   enabled        Boolean       @default(true)
+  autoCreateIncident          Boolean       @default(false)
+  incidentSeverityThreshold   AlertSeverity @default(HIGH)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
   @@index([alertType])
   @@index([enabled])
   @@map("security_rules")
+}
+
+model UserRiskHistory {
+  id          String    @id @default(uuid())
+  userId      String
+  riskScore   Int
+  riskLevel   RiskLevel
+  breakdown   Json?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@map("user_risk_histories")
+}
+
+model SecurityRuleHistory {
+  id                    String   @id @default(uuid())
+  ruleId                String
+  previousConfiguration Json?
+  newConfiguration      Json?
+  changedBy             String?
+  createdAt             DateTime @default(now())
+
+  @@index([ruleId])
+  @@index([createdAt])
+  @@index([ruleId, createdAt])
+  @@map("security_rule_histories")
+}
+
+model CorrelationAlert {
+  id            String            @id @default(uuid())
+  type          String
+  severity      AlertSeverity
+  sourceAlerts  String[]
+  description   String?
+  status        CorrelationStatus @default(OPEN)
+  createdAt     DateTime          @default(now())
+  resolvedAt    DateTime?
+
+  @@index([status])
+  @@index([severity])
+  @@index([createdAt])
+  @@index([type])
+  @@map("correlation_alerts")
 }

@@ -20,6 +20,13 @@ export {
   SecurityDashboardIncidentDto,
   SecurityDashboardRiskUserDto,
   EngineMetricsDto,
+  TopAlertSourceDto,
 } from "./security-dashboard-response.dto";
 export { SecurityTimelineDto, TimelineEntryDto } from "./security-timeline-response.dto";
 export { UpdateSecurityRuleDto } from "./rule.dto";
+export { RiskHistoryEntryDto, RiskTrendDto, RiskHistoryResponseDto } from "./user-risk-history.dto";
+export { RuleHistoryEntryDto, RuleHistoryResponseDto } from "./rule-history.dto";
+export { CorrelationAlertDto, CorrelationAlertSearchResponseDto } from "./correlation-alert.dto";
+export { RulePerformanceDto, DetectionHealthMetricsDto } from "./detection-health.dto";
+export { SecurityKpiDto } from "./security-kpi.dto";
+export { GlobalTimelineQueryDto, GlobalTimelineEntryDto, GlobalTimelineResponseDto } from "./global-timeline.dto";

@@ -7,6 +7,7 @@ import {
 import { PrismaService } from "@/prisma/prisma.service";
 import { AuditService } from "@/modules/audit/audit.service";
 import { AuditEvents, AuditModules } from "@/config";
+import { SecurityRuleHistoryService } from "./security-rule-history.service";
 
 @Injectable()
 export class SecurityRulesService {
@@ -15,6 +16,7 @@ export class SecurityRulesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly ruleHistoryService: SecurityRuleHistoryService,
   ) {}
 
   async findAll() {
@@ -41,6 +43,8 @@ export class SecurityRulesService {
       threshold?: number;
       windowMinutes?: number;
       enabled?: boolean;
+      autoCreateIncident?: boolean;
+      incidentSeverityThreshold?: string;
     },
   ) {
     const rule = await this.prisma.securityRule.findUnique({ where: { id } });
@@ -56,6 +60,17 @@ export class SecurityRulesService {
       throw new BadRequestException("Window minutes must be at least 1");
     }
 
+    const previousConfiguration: Record<string, unknown> = {
+      name: rule.name,
+      description: rule.description,
+      severity: rule.severity,
+      threshold: rule.threshold,
+      windowMinutes: rule.windowMinutes,
+      enabled: rule.enabled,
+      autoCreateIncident: rule.autoCreateIncident,
+      incidentSeverityThreshold: rule.incidentSeverityThreshold,
+    };
+
     const updateData: Record<string, unknown> = {};
     if (data.name !== undefined) updateData.name = data.name;
     if (data.description !== undefined) updateData.description = data.description;
@@ -63,11 +78,20 @@ export class SecurityRulesService {
     if (data.threshold !== undefined) updateData.threshold = data.threshold;
     if (data.windowMinutes !== undefined) updateData.windowMinutes = data.windowMinutes;
     if (data.enabled !== undefined) updateData.enabled = data.enabled;
+    if (data.autoCreateIncident !== undefined) updateData.autoCreateIncident = data.autoCreateIncident;
+    if (data.incidentSeverityThreshold !== undefined) updateData.incidentSeverityThreshold = data.incidentSeverityThreshold;
 
     const updated = await this.prisma.securityRule.update({
       where: { id },
       data: updateData,
     });
+
+    await this.ruleHistoryService.recordRuleChange(
+      id,
+      previousConfiguration,
+      updateData,
+      actorUserId,
+    );
 
     this.auditService.logSafe({
       userId: actorUserId,

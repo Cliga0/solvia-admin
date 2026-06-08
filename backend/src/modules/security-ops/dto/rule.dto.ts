@@ -37,4 +37,15 @@ export class UpdateSecurityRuleDto {
   @IsOptional()
   @IsBoolean()
   enabled?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  autoCreateIncident?: boolean;
+
+  @ApiPropertyOptional({ enum: ["LOW", "MEDIUM", "HIGH", "CRITICAL"] })
+  @IsOptional()
+  @IsString()
+  @IsIn(["LOW", "MEDIUM", "HIGH", "CRITICAL"])
+  incidentSeverityThreshold?: string;
 }

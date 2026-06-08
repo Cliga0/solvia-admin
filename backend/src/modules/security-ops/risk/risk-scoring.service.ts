@@ -5,6 +5,7 @@ import { AuditEvents, AuditModules } from "@/config";
 import { RiskLevel } from "@prisma/client";
 import { SecurityRedisService } from "../security-redis.service";
 import { RiskBreakdownDto, UserRiskProfileWithBreakdownDto } from "../dto";
+import { RiskHistoryService } from "./risk-history.service";
 
 const RISK_WINDOW_DAYS = 30;
 
@@ -33,6 +34,7 @@ export class RiskScoringService {
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly redisService: SecurityRedisService,
+    private readonly riskHistoryService: RiskHistoryService,
   ) {}
 
   async calculateUserRisk(userId: string): Promise<RiskCalculationResult> {
@@ -113,6 +115,7 @@ export class RiskScoringService {
     });
 
     await this.redisService.invalidateRiskProfile(userId);
+    await this.riskHistoryService.recordRiskCalculation(userId, riskScore, riskLevel, breakdown as unknown as Record<string, unknown>);
 
     this.auditService.logSafe({
       userId,

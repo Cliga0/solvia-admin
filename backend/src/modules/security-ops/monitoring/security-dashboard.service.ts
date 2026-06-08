@@ -6,6 +6,11 @@ import { AlertMetricsService } from "../metrics/alert-metrics.service";
 import { IncidentMetricsService } from "../metrics/incident-metrics.service";
 import { RiskMetricsService } from "../metrics/risk-metrics.service";
 import { ActivityMetricsService } from "../metrics/activity-metrics.service";
+import { DetectionHealthService } from "./detection-health.service";
+import { SecurityKpiService } from "../metrics/security-kpi.service";
+import { RiskHistoryService } from "../risk/risk-history.service";
+import { SecurityCorrelationService } from "../alerts/alert-correlation.service";
+import { SecurityGlobalTimelineService } from "../timeline/security-global-timeline.service";
 import { EngineType } from "@prisma/client";
 import { SecurityDashboardDto, EngineMetricsDto } from "../dto";
 
@@ -19,6 +24,11 @@ export class SecurityDashboardService {
     private readonly incidentMetrics: IncidentMetricsService,
     private readonly riskMetrics: RiskMetricsService,
     private readonly activityMetrics: ActivityMetricsService,
+    private readonly detectionHealth: DetectionHealthService,
+    private readonly kpiService: SecurityKpiService,
+    private readonly riskHistoryService: RiskHistoryService,
+    private readonly correlationService: SecurityCorrelationService,
+    private readonly globalTimelineService: SecurityGlobalTimelineService,
   ) {}
 
   async getDashboard(): Promise<SecurityDashboardDto> {
@@ -46,6 +56,14 @@ export class SecurityDashboardService {
       securityEventsToday,
       activeIncidents,
       highRiskUsers,
+      detectionHealth,
+      kpis,
+      riskTrend,
+      correlationAlerts,
+      globalTimelineFeed,
+      topRiskUsers,
+      topActiveIps,
+      mostTriggeredRules,
     ] = await Promise.all([
       this.prisma.securityAlert.count({
         where: { status: { in: ["OPEN", "INVESTIGATING"] } },
@@ -84,6 +102,14 @@ export class SecurityDashboardService {
       this.prisma.userRiskProfile.count({
         where: { riskLevel: { in: ["HIGH", "CRITICAL"] } },
       }),
+      this.detectionHealth.getDetectionHealth().catch(() => null),
+      this.kpiService.getKpis().catch(() => null),
+      this.riskHistoryService.getGlobalRiskTrend(7).catch(() => []),
+      this.correlationService.getOpenCorrelations(10).catch(() => []),
+      this.globalTimelineService.getPreview(10).catch(() => []),
+      this.getTopRiskUsers(),
+      this.getTopActiveIps(),
+      this.getMostTriggeredRules(),
     ]);
 
     const engineMetrics: EngineMetricsDto = {
@@ -120,10 +146,68 @@ export class SecurityDashboardService {
       riskDistribution,
       alertsLast24Hours,
       alertsLast7Days,
+      detectionHealth,
+      kpis,
+      riskTrend,
+      correlationAlerts,
+      globalTimelineFeed,
+      topRiskUsers,
+      topAlertSources: mostTriggeredRules,
+      topActiveIps,
+      mostTriggeredRules,
     };
 
     await this.redisService.cacheDashboard(JSON.stringify(dashboard));
 
     return dashboard;
+  }
+
+  private async getTopRiskUsers() {
+    const profiles = await this.prisma.userRiskProfile.findMany({
+      where: { riskLevel: { in: ["HIGH", "CRITICAL"] } },
+      orderBy: { riskScore: "desc" },
+      take: 5,
+    });
+
+    return profiles.map((p) => ({
+      userId: p.userId,
+      riskScore: p.riskScore,
+      riskLevel: p.riskLevel,
+      lastCalculatedAt: p.lastCalculatedAt,
+    }));
+  }
+
+  private async getTopActiveIps() {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    const results = await this.prisma.auditLog.groupBy({
+      by: ["ip"],
+      where: { ip: { not: null }, createdAt: { gte: sevenDaysAgo } },
+      _count: { id: true },
+      orderBy: { _count: { id: "desc" } },
+      take: 5,
+    });
+
+    return results.map((r) => ({
+      key: r.ip ?? "unknown",
+      count: r._count.id,
+    }));
+  }
+
+  private async getMostTriggeredRules() {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    const results = await this.prisma.securityAlert.groupBy({
+      by: ["type"],
+      where: { createdAt: { gte: sevenDaysAgo } },
+      _count: { id: true },
+      orderBy: { _count: { id: "desc" } },
+      take: 5,
+    });
+
+    return results.map((r) => ({
+      key: r.type,
+      count: r._count.id,
+    }));
   }
 }

@@ -1,4 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { DetectionHealthMetricsDto } from "./detection-health.dto";
+import { SecurityKpiDto } from "./security-kpi.dto";
+import { CorrelationAlertDto } from "./correlation-alert.dto";
+import { GlobalTimelineEntryDto } from "./global-timeline.dto";
+import { RiskTrendDto } from "./user-risk-history.dto";
 
 export class SecurityDashboardAlertDto {
   @ApiProperty() id!: string;
@@ -32,6 +37,11 @@ export class EngineMetricsDto {
   @ApiProperty() riskEngineStatus!: string;
 }
 
+export class TopAlertSourceDto {
+  @ApiProperty() key!: string;
+  @ApiProperty() count!: number;
+}
+
 export class SecurityDashboardDto {
   @ApiProperty() openAlerts!: number;
   @ApiProperty() criticalAlerts!: number;
@@ -47,4 +57,13 @@ export class SecurityDashboardDto {
   @ApiProperty() riskDistribution!: Record<string, number>;
   @ApiProperty() alertsLast24Hours!: number;
   @ApiProperty() alertsLast7Days!: number;
+  @ApiPropertyOptional() detectionHealth?: DetectionHealthMetricsDto | null;
+  @ApiPropertyOptional() kpis?: SecurityKpiDto | null;
+  @ApiProperty({ type: [RiskTrendDto] }) riskTrend!: RiskTrendDto[];
+  @ApiProperty({ type: [CorrelationAlertDto] }) correlationAlerts!: CorrelationAlertDto[];
+  @ApiProperty({ type: [GlobalTimelineEntryDto] }) globalTimelineFeed!: GlobalTimelineEntryDto[];
+  @ApiProperty({ type: [SecurityDashboardRiskUserDto] }) topRiskUsers!: SecurityDashboardRiskUserDto[];
+  @ApiProperty({ type: [TopAlertSourceDto] }) topAlertSources!: TopAlertSourceDto[];
+  @ApiProperty({ type: [TopAlertSourceDto] }) topActiveIps!: TopAlertSourceDto[];
+  @ApiProperty({ type: [TopAlertSourceDto] }) mostTriggeredRules!: TopAlertSourceDto[];
 }

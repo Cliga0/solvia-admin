@@ -3,6 +3,10 @@ import { PrismaService } from "@/prisma/prisma.service";
 import { AuditService } from "@/modules/audit/audit.service";
 import { AuditEvents, AuditModules } from "@/config";
 import { AlertType, AlertSeverity } from "@prisma/client";
+import { AlertDeduplicationService } from "./alert-deduplication.service";
+import { AlertContextService } from "./alert-context.service";
+import { IncidentAutomationService } from "../incidents/incident-automation.service";
+import { SecurityCorrelationService } from "./alert-correlation.service";
 
 interface DetectionRule {
   id: string;
@@ -11,6 +15,8 @@ interface DetectionRule {
   severity: AlertSeverity;
   threshold: number;
   windowMinutes: number;
+  autoCreateIncident: boolean;
+  incidentSeverityThreshold: AlertSeverity;
   auditEvents: string[];
   auditModules?: string[];
 }
@@ -22,6 +28,10 @@ export class AlertEngineService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly deduplication: AlertDeduplicationService,
+    private readonly contextService: AlertContextService,
+    private readonly incidentAutomation: IncidentAutomationService,
+    private readonly correlationService: SecurityCorrelationService,
   ) {}
 
   async evaluateRules(): Promise<void> {
@@ -30,6 +40,8 @@ export class AlertEngineService {
     for (const rule of rules) {
       await this.evaluateRule(rule);
     }
+
+    await this.correlationService.runCorrelationAnalysis();
   }
 
   private async loadRules(): Promise<DetectionRule[]> {
@@ -44,6 +56,8 @@ export class AlertEngineService {
       severity: r.severity as AlertSeverity,
       threshold: r.threshold,
       windowMinutes: r.windowMinutes,
+      autoCreateIncident: r.autoCreateIncident,
+      incidentSeverityThreshold: r.incidentSeverityThreshold as AlertSeverity,
       auditEvents: this.mapAlertTypeToEvents(r.alertType as AlertType),
       auditModules: this.mapAlertTypeToModules(r.alertType as AlertType),
     }));
@@ -80,17 +94,32 @@ export class AlertEngineService {
       return;
     }
 
-    const existingRecent = await this.prisma.securityAlert.findFirst({
-      where: {
-        type: rule.alertType,
-        status: { in: ["OPEN", "INVESTIGATING"] },
-        createdAt: { gte: windowStart },
-      },
-    });
+    const baseMetadata: Record<string, unknown> = {
+      triggeringEvent: rule.auditEvents.join("/"),
+      eventCount: count,
+      threshold: rule.threshold,
+      windowMinutes: rule.windowMinutes,
+    };
 
-    if (existingRecent) {
+    const fingerprint = this.deduplication.generateFingerprint(rule.alertType, baseMetadata);
+
+    const isDuplicate = await this.deduplication.findOrIncrementExisting(
+      fingerprint,
+      rule.alertType,
+      windowStart,
+    );
+
+    if (isDuplicate) {
       return;
     }
+
+    const context = await this.contextService.collectContext(
+      rule.auditEvents,
+      windowStart,
+      rule.auditModules,
+    );
+
+    const enrichedMetadata = this.contextService.enrichMetadata(baseMetadata, context);
 
     const dynamicSeverity = this.resolveSeverity(
       rule.alertType,
@@ -100,12 +129,11 @@ export class AlertEngineService {
     );
 
     await this.createAlert(
-      rule.alertType,
+      rule,
       dynamicSeverity,
-      rule.auditEvents.join("/"),
       count,
-      rule.threshold,
-      rule.windowMinutes,
+      enrichedMetadata,
+      fingerprint,
     );
   }
 
@@ -131,31 +159,28 @@ export class AlertEngineService {
   }
 
   private async createAlert(
-    type: AlertType,
+    rule: DetectionRule,
     severity: AlertSeverity,
-    triggeringEvent: string,
     eventCount: number,
-    threshold: number,
-    windowMinutes: number,
+    metadata: Record<string, unknown>,
+    fingerprint: string,
   ): Promise<void> {
-    const alert = await this.prisma.securityAlert.create({
-      data: {
-        type,
-        severity,
-        title: this.formatTitle(type, eventCount),
-        description: `${eventCount} ${triggeringEvent} events detected in the last ${windowMinutes} minutes (threshold: ${threshold})`,
-        status: "OPEN",
-        metadata: {
-          triggeringEvent,
-          eventCount,
-          threshold,
-          windowMinutes,
-        },
-      },
-    });
+    const title = this.formatTitle(rule.alertType, eventCount);
+    const description = `${eventCount} ${rule.auditEvents.join("/")} events detected in the last ${rule.windowMinutes} minutes (threshold: ${rule.threshold})`;
+
+    const createData = this.deduplication.buildCreateData(
+      rule.alertType,
+      severity,
+      title,
+      description,
+      metadata,
+      fingerprint,
+    );
+
+    const alert = await this.prisma.securityAlert.create({ data: createData });
 
     this.logger.warn(
-      `SECURITY_ALERT_CREATED type=${type} severity=${severity} eventCount=${eventCount}`,
+      `SECURITY_ALERT_CREATED type=${rule.alertType} severity=${severity} eventCount=${eventCount}`,
     );
 
     this.auditService.logSafe({
@@ -163,8 +188,17 @@ export class AlertEngineService {
       module: AuditModules.SECURITY,
       resourceType: "security_alerts",
       resourceId: alert.id,
-      metadata: { type, severity, eventCount, threshold },
+      metadata: { type: rule.alertType, severity, eventCount, threshold: rule.threshold },
     });
+
+    if (rule.autoCreateIncident) {
+      await this.incidentAutomation.maybeCreateIncidentForAlert(
+        alert.id,
+        severity,
+        rule.code,
+        rule.incidentSeverityThreshold,
+      );
+    }
   }
 
   private formatTitle(type: string, count: number): string {

@@ -15,7 +15,9 @@ import { Request } from "express";
 import { AlertsService } from "./alerts/alerts.service";
 import { IncidentsService } from "./incidents/incidents.service";
 import { RiskScoringService } from "./risk/risk-scoring.service";
+import { RiskHistoryService } from "./risk/risk-history.service";
 import { SecurityTimelineService } from "./timeline/security-timeline.service";
+import { SecurityGlobalTimelineService } from "./timeline/security-global-timeline.service";
 import { SecurityDashboardService } from "./monitoring/security-dashboard.service";
 import { SecurityMonitoringService } from "./monitoring/security-monitoring.service";
 import { PermissionsGuard, RequirePermission } from "../rbac/guards";
@@ -26,8 +28,10 @@ import {
   CreateIncidentDto,
   UpdateIncidentDto,
   UpdateSecurityRuleDto,
+  GlobalTimelineQueryDto,
 } from "./dto";
 import { SecurityRulesService } from "./rules/security-rules.service";
+import { SecurityRuleHistoryService } from "./rules/security-rule-history.service";
 
 @ApiTags("Security")
 @ApiBearerAuth()
@@ -38,10 +42,13 @@ export class SecurityOpsController {
     private readonly alertsService: AlertsService,
     private readonly incidentsService: IncidentsService,
     private readonly riskScoring: RiskScoringService,
+    private readonly riskHistoryService: RiskHistoryService,
     private readonly timelineService: SecurityTimelineService,
+    private readonly globalTimelineService: SecurityGlobalTimelineService,
     private readonly dashboardService: SecurityDashboardService,
     private readonly monitoringService: SecurityMonitoringService,
     private readonly rulesService: SecurityRulesService,
+    private readonly ruleHistoryService: SecurityRuleHistoryService,
   ) {}
 
   private getActorId(req: Request): string {
@@ -129,6 +136,13 @@ export class SecurityOpsController {
     return this.riskScoring.getUserRiskProfile(id);
   }
 
+  @Get("risk/:userId/history")
+  @RequirePermission("security.read")
+  @ApiOperation({ summary: "Get risk score history for a user" })
+  getUserRiskHistory(@Param("userId") userId: string) {
+    return this.riskHistoryService.getUserRiskHistory(userId);
+  }
+
   // =========================
   // USER TIMELINE
   // =========================
@@ -138,6 +152,17 @@ export class SecurityOpsController {
   @ApiOperation({ summary: "Get security timeline for a user" })
   getUserTimeline(@Param("id") id: string) {
     return this.timelineService.getUserTimeline(id);
+  }
+
+  // =========================
+  // GLOBAL TIMELINE
+  // =========================
+
+  @Get("timeline/global")
+  @RequirePermission("security.read")
+  @ApiOperation({ summary: "Get global security timeline" })
+  getGlobalTimeline(@Query() query: GlobalTimelineQueryDto) {
+    return this.globalTimelineService.getGlobalTimeline(query);
   }
 
   // =========================
@@ -156,6 +181,13 @@ export class SecurityOpsController {
   @ApiOperation({ summary: "Get a security rule by ID" })
   findRuleById(@Param("id") id: string) {
     return this.rulesService.findById(id);
+  }
+
+  @Get("rules/:id/history")
+  @RequirePermission("security.rules.read")
+  @ApiOperation({ summary: "Get change history for a security rule" })
+  getRuleHistory(@Param("id") id: string) {
+    return this.ruleHistoryService.getRuleHistory(id);
   }
 
   @Patch("rules/:id")
