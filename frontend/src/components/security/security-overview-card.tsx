@@ -3,7 +3,7 @@
 import type { SecurityDashboardData } from "@/types/security";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Shield, AlertTriangle, FileText, Users } from "lucide-react";
+import { Shield, TriangleAlert as AlertTriangle, FileText, Users } from "lucide-react";
 
 interface Props {
   data: SecurityDashboardData;

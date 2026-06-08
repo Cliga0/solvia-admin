@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertTriangle } from "lucide-react";
+import { TriangleAlert as AlertTriangle } from "lucide-react";
 import { useUpdateAlert } from "@/hooks/use-security";
 import { toast } from "sonner";
 

@@ -7,7 +7,7 @@ import { AlertsTable } from "@/components/security/alerts-table";
 import { IncidentsCard } from "@/components/security/incidents-card";
 import { RecentActivityCard } from "@/components/security/recent-activity-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, AlertTriangle, FileText, Activity } from "lucide-react";
+import { Shield, TriangleAlert as AlertTriangle, FileText, Activity } from "lucide-react";
 
 export default function SecurityPage() {
   const [activeTab, setActiveTab] = useState("overview");
