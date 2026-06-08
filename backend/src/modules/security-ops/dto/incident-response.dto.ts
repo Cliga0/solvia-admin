@@ -5,6 +5,8 @@ export class IncidentDto {
   @ApiPropertyOptional() alertId?: string | null;
   @ApiProperty() status!: string;
   @ApiPropertyOptional() assignedTo?: string | null;
+  @ApiPropertyOptional() assignedToUserId?: string | null;
+  @ApiPropertyOptional() assignedToEmail?: string | null;
   @ApiPropertyOptional() notes?: string | null;
   @ApiProperty() createdAt!: Date;
   @ApiPropertyOptional() resolvedAt?: Date | null;

@@ -25,7 +25,9 @@ import {
   IncidentQueryDto,
   CreateIncidentDto,
   UpdateIncidentDto,
+  UpdateSecurityRuleDto,
 } from "./dto";
+import { SecurityRulesService } from "./rules/security-rules.service";
 
 @ApiTags("Security")
 @ApiBearerAuth()
@@ -39,6 +41,7 @@ export class SecurityOpsController {
     private readonly timelineService: SecurityTimelineService,
     private readonly dashboardService: SecurityDashboardService,
     private readonly monitoringService: SecurityMonitoringService,
+    private readonly rulesService: SecurityRulesService,
   ) {}
 
   private getActorId(req: Request): string {
@@ -135,6 +138,35 @@ export class SecurityOpsController {
   @ApiOperation({ summary: "Get security timeline for a user" })
   getUserTimeline(@Param("id") id: string) {
     return this.timelineService.getUserTimeline(id);
+  }
+
+  // =========================
+  // SECURITY RULES
+  // =========================
+
+  @Get("rules")
+  @RequirePermission("security.rules.read")
+  @ApiOperation({ summary: "List all security detection rules" })
+  findAllRules() {
+    return this.rulesService.findAll();
+  }
+
+  @Get("rules/:id")
+  @RequirePermission("security.rules.read")
+  @ApiOperation({ summary: "Get a security rule by ID" })
+  findRuleById(@Param("id") id: string) {
+    return this.rulesService.findById(id);
+  }
+
+  @Patch("rules/:id")
+  @RequirePermission("security.rules.manage")
+  @ApiOperation({ summary: "Update a security detection rule" })
+  updateRule(
+    @Param("id") id: string,
+    @Body() dto: UpdateSecurityRuleDto,
+    @Req() req: Request,
+  ) {
+    return this.rulesService.update(this.getActorId(req), id, dto);
   }
 
   // =========================

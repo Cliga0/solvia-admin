@@ -12,4 +12,14 @@ export class UpdateAlertDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  resolutionReason?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  resolutionNotes?: string;
 }

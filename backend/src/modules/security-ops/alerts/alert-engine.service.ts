@@ -4,13 +4,16 @@ import { AuditService } from "@/modules/audit/audit.service";
 import { AuditEvents, AuditModules } from "@/config";
 import { AlertType, AlertSeverity } from "@prisma/client";
 
-const DETECTION_WINDOW_MINUTES = 15;
-
-const DETECTION_RULES = {
-  FAILED_LOGIN_SPIKE: { event: "AUTH_LOGIN_FAILED", threshold: 10, severity: "HIGH" as const },
-  TWO_FACTOR_FAILURE_SPIKE: { event: "TWO_FACTOR_FAILED", threshold: 10, severity: "HIGH" as const },
-  PERMISSION_DENIED_SPIKE: { event: "PERMISSION_DENIED", threshold: 20, severity: "MEDIUM" as const },
-} as const;
+interface DetectionRule {
+  id: string;
+  code: string;
+  alertType: AlertType;
+  severity: AlertSeverity;
+  threshold: number;
+  windowMinutes: number;
+  auditEvents: string[];
+  auditModules?: string[];
+}
 
 @Injectable()
 export class AlertEngineService {
@@ -22,44 +25,64 @@ export class AlertEngineService {
   ) {}
 
   async evaluateRules(): Promise<void> {
-    for (const [alertType, rule] of Object.entries(DETECTION_RULES)) {
-      await this.evaluateRule(
-        alertType as AlertType,
-        rule.event,
-        rule.threshold,
-        rule.severity as AlertSeverity,
-      );
-    }
+    const rules = await this.loadRules();
 
-    await this.evaluateUserDisabledEvents();
-    await this.evaluateRoleAssignmentEvents();
-    await this.evaluateSecurityConfigChanges();
+    for (const rule of rules) {
+      await this.evaluateRule(rule);
+    }
   }
 
-  private async evaluateRule(
-    alertType: AlertType,
-    auditEvent: string,
-    threshold: number,
-    severity: AlertSeverity,
-  ): Promise<void> {
-    const windowStart = new Date(
-      Date.now() - DETECTION_WINDOW_MINUTES * 60 * 1000,
-    );
-
-    const count = await this.prisma.auditLog.count({
-      where: {
-        event: auditEvent,
-        createdAt: { gte: windowStart },
-      },
+  private async loadRules(): Promise<DetectionRule[]> {
+    const dbRules = await this.prisma.securityRule.findMany({
+      where: { enabled: true },
     });
 
-    if (count < threshold) {
+    return dbRules.map((r) => ({
+      id: r.id,
+      code: r.code,
+      alertType: r.alertType as AlertType,
+      severity: r.severity as AlertSeverity,
+      threshold: r.threshold,
+      windowMinutes: r.windowMinutes,
+      auditEvents: this.mapAlertTypeToEvents(r.alertType as AlertType),
+      auditModules: this.mapAlertTypeToModules(r.alertType as AlertType),
+    }));
+  }
+
+  private async evaluateRule(rule: DetectionRule): Promise<void> {
+    const windowStart = new Date(
+      Date.now() - rule.windowMinutes * 60 * 1000,
+    );
+
+    const whereClause: Record<string, unknown> = {
+      createdAt: { gte: windowStart },
+    };
+
+    if (rule.auditEvents.length === 1) {
+      whereClause.event = rule.auditEvents[0];
+    } else {
+      whereClause.event = { in: rule.auditEvents };
+    }
+
+    if (rule.auditModules && rule.auditModules.length > 0) {
+      if (rule.auditModules.length === 1) {
+        whereClause.module = rule.auditModules[0];
+      } else {
+        whereClause.module = { in: rule.auditModules };
+      }
+    }
+
+    const count = await this.prisma.auditLog.count({
+      where: whereClause,
+    });
+
+    if (count < rule.threshold) {
       return;
     }
 
     const existingRecent = await this.prisma.securityAlert.findFirst({
       where: {
-        type: alertType,
+        type: rule.alertType,
         status: { in: ["OPEN", "INVESTIGATING"] },
         createdAt: { gte: windowStart },
       },
@@ -69,107 +92,42 @@ export class AlertEngineService {
       return;
     }
 
-    await this.createAlert(alertType, severity, auditEvent, count, threshold);
-  }
-
-  private async evaluateUserDisabledEvents(): Promise<void> {
-    const windowStart = new Date(
-      Date.now() - DETECTION_WINDOW_MINUTES * 60 * 1000,
+    const dynamicSeverity = this.resolveSeverity(
+      rule.alertType,
+      rule.severity,
+      count,
+      rule.threshold,
     );
 
-    const count = await this.prisma.auditLog.count({
-      where: {
-        event: { in: ["USER_DISABLED", "USER_SUSPENDED"] },
-        createdAt: { gte: windowStart },
-      },
-    });
-
-    if (count < 3) return;
-
-    const existingRecent = await this.prisma.securityAlert.findFirst({
-      where: {
-        type: "USER_DISABLED_EVENT",
-        status: { in: ["OPEN", "INVESTIGATING"] },
-        createdAt: { gte: windowStart },
-      },
-    });
-
-    if (existingRecent) return;
-
     await this.createAlert(
-      "USER_DISABLED_EVENT",
-      count >= 5 ? "CRITICAL" : "MEDIUM",
-      "USER_DISABLED/USER_SUSPENDED",
+      rule.alertType,
+      dynamicSeverity,
+      rule.auditEvents.join("/"),
       count,
-      3,
+      rule.threshold,
+      rule.windowMinutes,
     );
   }
 
-  private async evaluateRoleAssignmentEvents(): Promise<void> {
-    const windowStart = new Date(
-      Date.now() - DETECTION_WINDOW_MINUTES * 60 * 1000,
-    );
-
-    const count = await this.prisma.auditLog.count({
-      where: {
-        event: { in: ["USER_ROLE_ASSIGNED", "ROLE_PERMISSION_ASSIGNED"] },
-        createdAt: { gte: windowStart },
-      },
-    });
-
-    if (count < 5) return;
-
-    const existingRecent = await this.prisma.securityAlert.findFirst({
-      where: {
-        type: "ROLE_ASSIGNMENT_EVENT",
-        status: { in: ["OPEN", "INVESTIGATING"] },
-        createdAt: { gte: windowStart },
-      },
-    });
-
-    if (existingRecent) return;
-
-    await this.createAlert(
-      "ROLE_ASSIGNMENT_EVENT",
-      count >= 10 ? "HIGH" : "LOW",
-      "USER_ROLE_ASSIGNED/ROLE_PERMISSION_ASSIGNED",
-      count,
-      5,
-    );
-  }
-
-  private async evaluateSecurityConfigChanges(): Promise<void> {
-    const windowStart = new Date(
-      Date.now() - DETECTION_WINDOW_MINUTES * 60 * 1000,
-    );
-
-    const count = await this.prisma.auditLog.count({
-      where: {
-        event: { in: ["SYSTEM_SETTING_UPDATED", "MAINTENANCE_MODE_ENABLED", "MAINTENANCE_MODE_DISABLED"] },
-        module: { in: ["system", "security"] },
-        createdAt: { gte: windowStart },
-      },
-    });
-
-    if (count < 1) return;
-
-    const existingRecent = await this.prisma.securityAlert.findFirst({
-      where: {
-        type: "SECURITY_CONFIGURATION_CHANGED",
-        status: { in: ["OPEN", "INVESTIGATING"] },
-        createdAt: { gte: windowStart },
-      },
-    });
-
-    if (existingRecent) return;
-
-    await this.createAlert(
-      "SECURITY_CONFIGURATION_CHANGED",
-      count >= 3 ? "HIGH" : "MEDIUM",
-      "SYSTEM_SETTING_UPDATED",
-      count,
-      1,
-    );
+  private resolveSeverity(
+    alertType: AlertType,
+    baseSeverity: AlertSeverity,
+    count: number,
+    threshold: number,
+  ): AlertSeverity {
+    if (alertType === "USER_DISABLED_EVENT") {
+      if (count >= threshold * 2) return "CRITICAL";
+      return baseSeverity;
+    }
+    if (alertType === "ROLE_ASSIGNMENT_EVENT") {
+      if (count >= threshold * 2) return "HIGH";
+      return baseSeverity;
+    }
+    if (alertType === "SECURITY_CONFIGURATION_CHANGED") {
+      if (count >= 3) return "HIGH";
+      return baseSeverity;
+    }
+    return baseSeverity;
   }
 
   private async createAlert(
@@ -178,19 +136,20 @@ export class AlertEngineService {
     triggeringEvent: string,
     eventCount: number,
     threshold: number,
+    windowMinutes: number,
   ): Promise<void> {
     const alert = await this.prisma.securityAlert.create({
       data: {
         type,
         severity,
         title: this.formatTitle(type, eventCount),
-        description: `${eventCount} ${triggeringEvent} events detected in the last ${DETECTION_WINDOW_MINUTES} minutes (threshold: ${threshold})`,
+        description: `${eventCount} ${triggeringEvent} events detected in the last ${windowMinutes} minutes (threshold: ${threshold})`,
         status: "OPEN",
         metadata: {
           triggeringEvent,
           eventCount,
           threshold,
-          windowMinutes: DETECTION_WINDOW_MINUTES,
+          windowMinutes,
         },
       },
     });
@@ -218,5 +177,28 @@ export class AlertEngineService {
       SECURITY_CONFIGURATION_CHANGED: `Security Configuration Changed`,
     };
     return titles[type] ?? `Security Alert: ${type}`;
+  }
+
+  private mapAlertTypeToEvents(alertType: AlertType): string[] {
+    const mapping: Record<string, string[]> = {
+      FAILED_LOGIN_SPIKE: ["AUTH_LOGIN_FAILED"],
+      TWO_FACTOR_FAILURE_SPIKE: ["TWO_FACTOR_FAILED"],
+      PERMISSION_DENIED_SPIKE: ["PERMISSION_DENIED"],
+      USER_DISABLED_EVENT: ["USER_DISABLED", "USER_SUSPENDED"],
+      ROLE_ASSIGNMENT_EVENT: ["USER_ROLE_ASSIGNED", "ROLE_PERMISSION_ASSIGNED"],
+      SECURITY_CONFIGURATION_CHANGED: [
+        "SYSTEM_SETTING_UPDATED",
+        "MAINTENANCE_MODE_ENABLED",
+        "MAINTENANCE_MODE_DISABLED",
+      ],
+    };
+    return mapping[alertType] ?? [];
+  }
+
+  private mapAlertTypeToModules(alertType: AlertType): string[] | undefined {
+    if (alertType === "SECURITY_CONFIGURATION_CHANGED") {
+      return ["system", "security"];
+    }
+    return undefined;
   }
 }

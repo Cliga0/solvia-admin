@@ -7,6 +7,7 @@ import type {
   SecurityIncident,
   UserRiskProfile,
   SecurityTimeline,
+  SecurityRule,
 } from "@/types/security";
 
 interface ApiResponse<T> {
@@ -53,7 +54,7 @@ export const securityService = {
     return authRequest<SecurityAlert>(`/security/alerts/${id}`);
   },
 
-  updateAlert(id: string, data: { status: string; description?: string }): Promise<SecurityAlert> {
+  updateAlert(id: string, data: { status: string; description?: string; resolutionReason?: string; resolutionNotes?: string }): Promise<SecurityAlert> {
     return authRequest<SecurityAlert>(`/security/alerts/${id}`, "PATCH", data);
   },
 
@@ -84,5 +85,17 @@ export const securityService = {
 
   recalculateRisks(): Promise<number> {
     return authRequest<number>("/security/monitoring/recalculate-risks", "POST");
+  },
+
+  getRules(): Promise<SecurityRule[]> {
+    return authRequest<SecurityRule[]>("/security/rules");
+  },
+
+  getRule(id: string): Promise<SecurityRule> {
+    return authRequest<SecurityRule>(`/security/rules/${id}`);
+  },
+
+  updateRule(id: string, data: { name?: string; description?: string; severity?: string; threshold?: number; windowMinutes?: number; enabled?: boolean }): Promise<SecurityRule> {
+    return authRequest<SecurityRule>(`/security/rules/${id}`, "PATCH", data);
   },
 };

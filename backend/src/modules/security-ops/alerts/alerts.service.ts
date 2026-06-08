@@ -62,6 +62,9 @@ export class AlertsService {
         orderBy: { createdAt: sortDirection },
         skip: (page - 1) * limit,
         take: limit,
+        include: {
+          resolver: { select: { email: true } },
+        },
       }),
       this.prisma.securityAlert.count({ where }),
     ]);
@@ -74,13 +77,18 @@ export class AlertsService {
     };
 
     return {
-      data: items.map(this.toDto),
+      data: items.map((item) => this.toDto(item)),
       pagination,
     };
   }
 
   async findById(id: string): Promise<AlertDto> {
-    const alert = await this.prisma.securityAlert.findUnique({ where: { id } });
+    const alert = await this.prisma.securityAlert.findUnique({
+      where: { id },
+      include: {
+        resolver: { select: { email: true } },
+      },
+    });
     if (!alert) {
       throw new NotFoundException("Security alert not found");
     }
@@ -97,15 +105,18 @@ export class AlertsService {
       throw new NotFoundException("Security alert not found");
     }
 
-    const resolvedAt =
-      dto.status === "RESOLVED" || dto.status === "FALSE_POSITIVE"
-        ? new Date()
-        : alert.resolvedAt;
+    const isResolved =
+      dto.status === "RESOLVED" || dto.status === "FALSE_POSITIVE";
 
-    const resolvedBy =
-      dto.status === "RESOLVED" || dto.status === "FALSE_POSITIVE"
-        ? actorUserId
-        : alert.resolvedBy;
+    const resolvedAt = isResolved ? new Date() : alert.resolvedAt;
+    const resolvedBy = isResolved ? actorUserId : alert.resolvedBy;
+    const resolvedByUserId = isResolved ? actorUserId : alert.resolvedByUserId;
+    const resolutionReason = isResolved
+      ? (dto.resolutionReason ?? alert.resolutionReason)
+      : alert.resolutionReason;
+    const resolutionNotes = isResolved
+      ? (dto.resolutionNotes ?? alert.resolutionNotes)
+      : alert.resolutionNotes;
 
     const updated = await this.prisma.securityAlert.update({
       where: { id },
@@ -114,17 +125,27 @@ export class AlertsService {
         description: dto.description ?? alert.description,
         resolvedAt,
         resolvedBy,
+        resolvedByUserId,
+        resolutionReason,
+        resolutionNotes,
+      },
+      include: {
+        resolver: { select: { email: true } },
       },
     });
 
-    if (dto.status === "RESOLVED" || dto.status === "FALSE_POSITIVE") {
+    if (isResolved) {
       this.auditService.logSafe({
         userId: actorUserId,
         event: AuditEvents.SECURITY_ALERT_RESOLVED,
         module: AuditModules.SECURITY,
         resourceType: "security_alerts",
         resourceId: id,
-        metadata: { newStatus: dto.status, alertType: alert.type },
+        metadata: {
+          newStatus: dto.status,
+          alertType: alert.type,
+          resolutionReason: dto.resolutionReason,
+        },
       });
     }
 
@@ -166,6 +187,10 @@ export class AlertsService {
       createdAt: Date;
       resolvedAt?: Date | null;
       resolvedBy?: string | null;
+      resolvedByUserId?: string | null;
+      resolutionReason?: string | null;
+      resolutionNotes?: string | null;
+      resolver?: { email: string } | null;
     },
   ): AlertDto {
     return {
@@ -179,6 +204,10 @@ export class AlertsService {
       createdAt: alert.createdAt,
       resolvedAt: alert.resolvedAt,
       resolvedBy: alert.resolvedBy,
+      resolvedByUserId: alert.resolvedByUserId,
+      resolvedByEmail: alert.resolver?.email ?? null,
+      resolutionReason: alert.resolutionReason,
+      resolutionNotes: alert.resolutionNotes,
     };
   }
 }

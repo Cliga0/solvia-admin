@@ -33,6 +33,8 @@ model InternalUser {
   backupCodes         BackupCode[]
   roles               UserRole[]
   auditLogs           AuditLog[]
+  resolvedAlerts      SecurityAlert[]
+  assignedIncidents   SecurityIncident[]
 
   @@index([status])
   @@map("internal_users")
@@ -234,39 +236,47 @@ enum RiskLevel {
 }
 
 model SecurityAlert {
-  id          String        @id @default(uuid())
-  type        AlertType
-  severity    AlertSeverity
-  title       String
-  description String?
-  status      AlertStatus   @default(OPEN)
-  metadata    Json?
-  createdAt   DateTime      @default(now())
-  resolvedAt  DateTime?
-  resolvedBy  String?
-  incidents   SecurityIncident[]
+  id                String        @id @default(uuid())
+  type              AlertType
+  severity          AlertSeverity
+  title             String
+  description       String?
+  status            AlertStatus   @default(OPEN)
+  metadata          Json?
+  createdAt         DateTime      @default(now())
+  resolvedAt        DateTime?
+  resolvedBy        String?
+  resolvedByUserId  String?
+  resolutionReason  String?
+  resolutionNotes   String?
+  incidents         SecurityIncident[]
+  resolver          InternalUser? @relation(fields: [resolvedByUserId], references: [id], onDelete: SetNull)
 
   @@index([type])
   @@index([severity])
   @@index([status])
   @@index([createdAt])
+  @@index([resolvedByUserId])
   @@map("security_alerts")
 }
 
 model SecurityIncident {
-  id          String        @id @default(uuid())
-  alertId     String?
-  status      IncidentStatus @default(OPEN)
-  assignedTo  String?
-  notes       String?
-  createdAt   DateTime      @default(now())
-  resolvedAt  DateTime?
-  alert       SecurityAlert? @relation(fields: [alertId], references: [id])
+  id              String        @id @default(uuid())
+  alertId         String?
+  status          IncidentStatus @default(OPEN)
+  assignedTo      String?
+  assignedToUserId String?
+  notes           String?
+  createdAt       DateTime      @default(now())
+  resolvedAt      DateTime?
+  alert           SecurityAlert? @relation(fields: [alertId], references: [id])
+  assignee        InternalUser?  @relation(fields: [assignedToUserId], references: [id], onDelete: SetNull)
 
   @@index([alertId])
   @@index([status])
   @@index([assignedTo])
   @@index([createdAt])
+  @@index([assignedToUserId])
   @@map("security_incidents")
 }
 
@@ -281,4 +291,51 @@ model UserRiskProfile {
   @@index([riskLevel])
   @@index([riskScore])
   @@map("user_risk_profiles")
+}
+
+enum EngineType {
+  ALERT_DETECTION
+  RISK_RECALCULATION
+}
+
+enum EngineExecutionStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model SecurityEngineExecution {
+  id            String               @id @default(uuid())
+  engine        EngineType
+  startedAt     DateTime             @default(now())
+  completedAt   DateTime?
+  status        EngineExecutionStatus @default(RUNNING)
+  durationMs    Int?
+  alertsCreated Int                  @default(0)
+  metadata      Json?
+  createdAt     DateTime             @default(now())
+
+  @@index([engine])
+  @@index([status])
+  @@index([startedAt])
+  @@index([engine, startedAt])
+  @@map("security_engine_executions")
+}
+
+model SecurityRule {
+  id             String        @id @default(uuid())
+  code           String        @unique
+  name           String
+  description    String?
+  alertType      AlertType
+  severity       AlertSeverity
+  threshold      Int
+  windowMinutes  Int           @default(15)
+  enabled        Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([alertType])
+  @@index([enabled])
+  @@map("security_rules")
 }

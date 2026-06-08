@@ -11,6 +11,10 @@ export class AlertDto {
   @ApiProperty() createdAt!: Date;
   @ApiPropertyOptional() resolvedAt?: Date | null;
   @ApiPropertyOptional() resolvedBy?: string | null;
+  @ApiPropertyOptional() resolvedByUserId?: string | null;
+  @ApiPropertyOptional() resolvedByEmail?: string | null;
+  @ApiPropertyOptional() resolutionReason?: string | null;
+  @ApiPropertyOptional() resolutionNotes?: string | null;
 }
 
 export class AlertPaginationDto {

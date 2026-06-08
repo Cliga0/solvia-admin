@@ -24,6 +24,14 @@ export class SecurityDashboardRiskUserDto {
   @ApiProperty() lastCalculatedAt!: Date;
 }
 
+export class EngineMetricsDto {
+  @ApiPropertyOptional() lastDetectionRun!: Date | null;
+  @ApiPropertyOptional() lastRiskCalculationRun!: Date | null;
+  @ApiProperty() alertsCreatedToday!: number;
+  @ApiProperty() detectionEngineStatus!: string;
+  @ApiProperty() riskEngineStatus!: string;
+}
+
 export class SecurityDashboardDto {
   @ApiProperty() openAlerts!: number;
   @ApiProperty() criticalAlerts!: number;
@@ -32,4 +40,11 @@ export class SecurityDashboardDto {
   @ApiProperty() failedLoginsToday!: number;
   @ApiProperty() securityEventsToday!: number;
   @ApiProperty({ type: [SecurityDashboardAlertDto] }) recentAlerts!: SecurityDashboardAlertDto[];
+  @ApiProperty() engineMetrics!: EngineMetricsDto;
+  @ApiProperty() alertsBySeverity!: Record<string, number>;
+  @ApiProperty() alertsByType!: Record<string, number>;
+  @ApiProperty() incidentsByStatus!: Record<string, number>;
+  @ApiProperty() riskDistribution!: Record<string, number>;
+  @ApiProperty() alertsLast24Hours!: number;
+  @ApiProperty() alertsLast7Days!: number;
 }

@@ -40,6 +40,9 @@ export class IncidentsService {
         orderBy: { createdAt: sortDirection },
         skip: (page - 1) * limit,
         take: limit,
+        include: {
+          assignee: { select: { email: true } },
+        },
       }),
       this.prisma.securityIncident.count({ where }),
     ]);
@@ -52,7 +55,7 @@ export class IncidentsService {
     };
 
     return {
-      data: items.map(this.toDto),
+      data: items.map((item) => this.toDto(item)),
       pagination,
     };
   }
@@ -60,6 +63,9 @@ export class IncidentsService {
   async findById(id: string): Promise<IncidentDto> {
     const incident = await this.prisma.securityIncident.findUnique({
       where: { id },
+      include: {
+        assignee: { select: { email: true } },
+      },
     });
     if (!incident) {
       throw new NotFoundException("Security incident not found");
@@ -85,7 +91,11 @@ export class IncidentsService {
         alertId: dto.alertId ?? null,
         status: "OPEN",
         assignedTo: dto.assignedTo ?? null,
+        assignedToUserId: dto.assignedTo ?? null,
         notes: dto.notes ?? null,
+      },
+      include: {
+        assignee: { select: { email: true } },
       },
     });
 
@@ -118,13 +128,19 @@ export class IncidentsService {
     const resolvedAt =
       dto.status === "RESOLVED" ? new Date() : incident.resolvedAt;
 
+    const assignedToUserId = dto.assignedTo ?? incident.assignedToUserId;
+
     const updated = await this.prisma.securityIncident.update({
       where: { id },
       data: {
         status: dto.status as IncidentStatus,
         assignedTo: dto.assignedTo ?? incident.assignedTo,
+        assignedToUserId,
         notes: dto.notes ?? incident.notes,
         resolvedAt,
+      },
+      include: {
+        assignee: { select: { email: true } },
       },
     });
 
@@ -181,9 +197,11 @@ export class IncidentsService {
       alertId?: string | null;
       status: string;
       assignedTo?: string | null;
+      assignedToUserId?: string | null;
       notes?: string | null;
       createdAt: Date;
       resolvedAt?: Date | null;
+      assignee?: { email: string } | null;
     },
   ): IncidentDto {
     return {
@@ -191,6 +209,8 @@ export class IncidentsService {
       alertId: incident.alertId,
       status: incident.status,
       assignedTo: incident.assignedTo,
+      assignedToUserId: incident.assignedToUserId,
+      assignedToEmail: incident.assignee?.email ?? null,
       notes: incident.notes,
       createdAt: incident.createdAt,
       resolvedAt: incident.resolvedAt,

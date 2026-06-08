@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { ThrottlerModule } from "@nestjs/throttler";
+import { ScheduleModule } from "@nestjs/schedule";
 import { PrismaModule } from "@/prisma/prisma.module";
 import { AuthModule } from "@/modules/auth/auth.module";
 import { AuditModule } from "@/modules/audit/audit.module";
@@ -28,6 +29,7 @@ import { EventSystemModule } from "./modules/event/event-system.module";
         },
       ],
     }),
+    ScheduleModule.forRoot(),
     PrismaModule,
     EventSystemModule,
     SecurityModule,
