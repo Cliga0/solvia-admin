@@ -58,6 +58,14 @@ export const AuditEvents = {
 
   // Dashboard
   DASHBOARD_VIEWED: "DASHBOARD_VIEWED",
+
+  // Security Operations Center
+  SECURITY_ALERT_CREATED: "SECURITY_ALERT_CREATED",
+  SECURITY_ALERT_RESOLVED: "SECURITY_ALERT_RESOLVED",
+  SECURITY_INCIDENT_CREATED: "SECURITY_INCIDENT_CREATED",
+  SECURITY_INCIDENT_ASSIGNED: "SECURITY_INCIDENT_ASSIGNED",
+  SECURITY_INCIDENT_RESOLVED: "SECURITY_INCIDENT_RESOLVED",
+  USER_RISK_RECALCULATED: "USER_RISK_RECALCULATED",
 } as const;
 
 export type AuditEventType = (typeof AuditEvents)[keyof typeof AuditEvents];
@@ -71,6 +79,7 @@ export const AuditModules = {
   AUDIT: "audit",
   SYSTEM: "system",
   DASHBOARD: "dashboard",
+  SECURITY: "security",
 } as const;
 
 export type AuditModuleType = (typeof AuditModules)[keyof typeof AuditModules];

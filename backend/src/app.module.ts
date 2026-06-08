@@ -9,6 +9,7 @@ import { SystemSettingsModule } from "@/modules/system-settings/system-settings.
 import { DashboardModule } from "@/modules/dashboard/dashboard.module";
 import { appConfig } from "./config";
 import { SecurityModule } from "./modules/security/security.module";
+import { SecurityOpsModule } from "./modules/security-ops/security-ops.module";
 import { EventSystemModule } from "./modules/event/event-system.module";
 
 @Module({
@@ -30,6 +31,7 @@ import { EventSystemModule } from "./modules/event/event-system.module";
     PrismaModule,
     EventSystemModule,
     SecurityModule,
+    SecurityOpsModule,
     AuthModule,
     AuditModule,
     UsersModule,
