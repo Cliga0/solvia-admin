@@ -1,13 +1,16 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "@/prisma/prisma.service";
 import { SecurityRedisService } from "../security-redis.service";
-import { SecurityDashboardDto } from "../dto";
+import { EngineExecutionService } from "../engine/engine-execution.service";
+import { EngineType } from "@prisma/client";
+import { SecurityDashboardDto, EngineMetricsDto } from "../dto";
 
 @Injectable()
 export class SecurityDashboardService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redisService: SecurityRedisService,
+    private readonly executionService: EngineExecutionService,
   ) {}
 
   async getDashboard(): Promise<SecurityDashboardDto> {
@@ -27,6 +30,11 @@ export class SecurityDashboardService {
       failedLoginsToday,
       securityEventsToday,
       recentAlerts,
+      lastDetectionRun,
+      lastRiskCalculationRun,
+      alertsCreatedToday,
+      detectionEngineStatus,
+      riskEngineStatus,
     ] = await Promise.all([
       this.prisma.securityAlert.count({
         where: { status: { in: ["OPEN", "INVESTIGATING"] } },
@@ -64,7 +72,24 @@ export class SecurityDashboardService {
           createdAt: true,
         },
       }),
+      this.executionService.getLastSuccessfulRun(EngineType.ALERT_DETECTION),
+      this.executionService.getLastSuccessfulRun(EngineType.RISK_RECALCULATION),
+      this.executionService.getAlertsCreatedToday(),
+      this.executionService.getEngineStatus(EngineType.ALERT_DETECTION),
+      this.executionService.getEngineStatus(EngineType.RISK_RECALCULATION),
     ]);
+
+    const engineMetrics: EngineMetricsDto = {
+      lastDetectionRun,
+      lastRiskCalculationRun,
+      alertsCreatedToday,
+      detectionEngineStatus: detectionEngineStatus.isRunning
+        ? "RUNNING"
+        : (detectionEngineStatus.lastStatus ?? "IDLE"),
+      riskEngineStatus: riskEngineStatus.isRunning
+        ? "RUNNING"
+        : (riskEngineStatus.lastStatus ?? "IDLE"),
+    };
 
     const dashboard: SecurityDashboardDto = {
       openAlerts,
@@ -81,6 +106,7 @@ export class SecurityDashboardService {
         status: a.status,
         createdAt: a.createdAt,
       })),
+      engineMetrics,
     };
 
     await this.redisService.cacheDashboard(JSON.stringify(dashboard));

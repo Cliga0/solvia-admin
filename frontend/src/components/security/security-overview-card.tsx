@@ -1,15 +1,18 @@
 "use client";
 
 import type { SecurityDashboardData } from "@/types/security";
+import { ENGINE_STATUS_COLORS } from "@/types/security";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Shield, TriangleAlert as AlertTriangle, FileText, Users } from "lucide-react";
+import { Shield, TriangleAlert as AlertTriangle, FileText, Users, Activity, Clock } from "lucide-react";
 
 interface Props {
   data: SecurityDashboardData;
 }
 
 export function SecurityOverviewCard({ data }: Props) {
+  const metrics = data.engineMetrics;
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -57,6 +60,47 @@ export function SecurityOverviewCard({ data }: Props) {
           </div>
         </div>
 
+        <div className="rounded-md bg-muted/50 p-2 space-y-2">
+          <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+            <Activity className="size-3" /> Engine Status
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span
+                  className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${ENGINE_STATUS_COLORS[metrics.detectionEngineStatus]}`}
+                >
+                  {metrics.detectionEngineStatus}
+                </span>
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Detection</p>
+              {metrics.lastDetectionRun && (
+                <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                  <Clock className="size-2.5" /> {formatTime(metrics.lastDetectionRun)}
+                </p>
+              )}
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span
+                  className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${ENGINE_STATUS_COLORS[metrics.riskEngineStatus]}`}
+                >
+                  {metrics.riskEngineStatus}
+                </span>
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Risk Engine</p>
+              {metrics.lastRiskCalculationRun && (
+                <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                  <Clock className="size-2.5" /> {formatTime(metrics.lastRiskCalculationRun)}
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="text-[10px] text-muted-foreground">
+            {metrics.alertsCreatedToday} alerts created by engines today
+          </div>
+        </div>
+
         {data.recentAlerts.length > 0 && (
           <div className="space-y-1.5 pt-1">
             <p className="text-xs font-medium text-muted-foreground">Recent Alerts</p>
@@ -95,4 +139,22 @@ function Metric({
       </div>
     </div>
   );
+}
+
+function formatTime(dateStr: string | null): string {
+  if (!dateStr) return "never";
+  try {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return "just now";
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr}h ago`;
+    const diffDay = Math.floor(diffHr / 24);
+    return `${diffDay}d ago`;
+  } catch {
+    return "";
+  }
 }

@@ -19,5 +19,6 @@ export {
   SecurityDashboardAlertDto,
   SecurityDashboardIncidentDto,
   SecurityDashboardRiskUserDto,
+  EngineMetricsDto,
 } from "./security-dashboard-response.dto";
 export { SecurityTimelineDto, TimelineEntryDto } from "./security-timeline-response.dto";

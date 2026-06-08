@@ -8,6 +8,9 @@ import { SecurityTimelineService } from "./timeline/security-timeline.service";
 import { SecurityDashboardService } from "./monitoring/security-dashboard.service";
 import { SecurityMonitoringService } from "./monitoring/security-monitoring.service";
 import { SecurityRedisService } from "./security-redis.service";
+import { EngineExecutionService } from "./engine/engine-execution.service";
+import { AlertDetectionJob } from "./jobs/alert-detection.job";
+import { RiskRecalculationJob } from "./jobs/risk-recalculation.job";
 import { AuditModule } from "../audit/audit.module";
 
 @Module({
@@ -22,7 +25,10 @@ import { AuditModule } from "../audit/audit.module";
     SecurityTimelineService,
     SecurityDashboardService,
     SecurityMonitoringService,
+    EngineExecutionService,
+    AlertDetectionJob,
+    RiskRecalculationJob,
   ],
-  exports: [AlertEngineService, RiskScoringService],
+  exports: [AlertEngineService, RiskScoringService, EngineExecutionService],
 })
 export class SecurityOpsModule {}

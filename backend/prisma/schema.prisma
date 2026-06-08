@@ -282,3 +282,32 @@ model UserRiskProfile {
   @@index([riskScore])
   @@map("user_risk_profiles")
 }
+
+enum EngineType {
+  ALERT_DETECTION
+  RISK_RECALCULATION
+}
+
+enum EngineExecutionStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model SecurityEngineExecution {
+  id            String               @id @default(uuid())
+  engine        EngineType
+  startedAt     DateTime             @default(now())
+  completedAt   DateTime?
+  status        EngineExecutionStatus @default(RUNNING)
+  durationMs    Int?
+  alertsCreated Int                  @default(0)
+  metadata      Json?
+  createdAt     DateTime             @default(now())
+
+  @@index([engine])
+  @@index([status])
+  @@index([startedAt])
+  @@index([engine, startedAt])
+  @@map("security_engine_executions")
+}

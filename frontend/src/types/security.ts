@@ -55,6 +55,16 @@ export interface SecurityTimeline {
   events: TimelineEntry[];
 }
 
+export type EngineExecutionStatus = "RUNNING" | "COMPLETED" | "FAILED" | "IDLE";
+
+export interface EngineMetrics {
+  lastDetectionRun: string | null;
+  lastRiskCalculationRun: string | null;
+  alertsCreatedToday: number;
+  detectionEngineStatus: EngineExecutionStatus;
+  riskEngineStatus: EngineExecutionStatus;
+}
+
 export interface SecurityDashboardData {
   openAlerts: number;
   criticalAlerts: number;
@@ -70,6 +80,7 @@ export interface SecurityDashboardData {
     status: AlertStatus;
     createdAt: string;
   }[];
+  engineMetrics: EngineMetrics;
 }
 
 export interface AlertSearchResponse {
@@ -107,4 +118,11 @@ export const RISK_LEVEL_COLORS: Record<RiskLevel, string> = {
   MEDIUM: "bg-warning-100 text-warning-800",
   HIGH: "bg-error-100 text-error-800",
   CRITICAL: "bg-error-200 text-error-900 font-semibold",
+};
+
+export const ENGINE_STATUS_COLORS: Record<EngineExecutionStatus, string> = {
+  RUNNING: "bg-primary-100 text-primary-800",
+  COMPLETED: "bg-success-100 text-success-800",
+  FAILED: "bg-error-100 text-error-800",
+  IDLE: "bg-muted text-muted-foreground",
 };
