@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import ms from "ms";
+import * as ms from "ms";
 
 @Injectable()
 export class AuthTokenPolicyService {
