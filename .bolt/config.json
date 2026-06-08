@@ -1,0 +1,7 @@
+{
+  "projectName": "solvia-admin",
+  "language": "typescript",
+  "framework": "nextjs",
+  "strictMode": true,
+  "template": "nextjs-shadcn"
+}

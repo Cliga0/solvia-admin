@@ -1,0 +1,400 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_DIRECT_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DISABLED
+  PENDING
+  ARCHIVED
+}
+
+model InternalUser {
+  id                String        @id @default(uuid())
+  email             String        @unique
+  passwordHash      String
+  isActive          Boolean       @default(true)
+  status            UserStatus    @default(ACTIVE)
+  lastLoginAt       DateTime?
+  twoFactorEnabled  Boolean       @default(false)
+  twoFactorSecret   String?
+  twoFactorEnabledAt DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  sessions            UserSession[]
+  passwordResetTokens PasswordResetToken[]
+  backupCodes         BackupCode[]
+  roles               UserRole[]
+  auditLogs           AuditLog[]
+  resolvedAlerts      SecurityAlert[]
+  assignedIncidents   SecurityIncident[]
+
+  @@index([status])
+  @@map("internal_users")
+}
+
+model UserSession {
+  id               String       @id @default(uuid())
+  userId           String
+  refreshTokenHash String
+  deviceId         String?
+  ip               String?
+  userAgent        String?
+  isRevoked        Boolean      @default(false)
+  loginAt          DateTime     @default(now())
+  logoutAt         DateTime?
+  lastActiveAt     DateTime
+  expiresAt        DateTime
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  user             InternalUser @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([refreshTokenHash])
+  @@map("user_sessions")
+}
+
+model PasswordResetToken {
+  id        String       @id @default(uuid())
+  userId    String
+  tokenHash String       @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  user      InternalUser @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model BackupCode {
+  id        String       @id @default(uuid())
+  userId    String
+  codeHash  String       @unique
+  usedAt    DateTime?
+  createdAt DateTime     @default(now())
+  user      InternalUser @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("backup_codes")
+}
+
+model Role {
+  id          String           @id @default(uuid())
+  code        String           @unique
+  name        String
+  description String?
+  isSystem    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  users       UserRole[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String           @id @default(uuid())
+  code        String           @unique
+  description String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model UserRole {
+  id         String       @id @default(uuid())
+  userId     String
+  roleId     String
+  assignedAt DateTime     @default(now())
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  user       InternalUser @relation(fields: [userId], references: [id])
+  role       Role         @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  id         String     @id @default(uuid())
+  roleId     String
+  permissionId String
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  role       Role       @relation(fields: [roleId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+enum SettingValueType {
+  STRING
+  NUMBER
+  BOOLEAN
+  JSON
+}
+
+enum SettingCategory {
+  PLATFORM
+  BRANDING
+  SECURITY
+  MAINTENANCE
+  NOTIFICATIONS
+}
+
+model SystemSetting {
+  id          String            @id @default(uuid())
+  category    SettingCategory
+  key         String
+  value       String
+  valueType   SettingValueType  @default(STRING)
+  description String?
+  isPublic    Boolean           @default(false)
+  isEditable  Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@unique([category, key])
+  @@index([category])
+  @@index([key])
+  @@map("system_settings")
+}
+
+model AuditLog {
+  id           String    @id @default(uuid())
+  userId       String?
+  event        String
+  module       String
+  resourceType String?
+  resourceId   String?
+  ip           String?
+  userAgent    String?
+  metadata     Json?
+  createdAt    DateTime  @default(now())
+  user         InternalUser? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([event])
+  @@index([module])
+  @@index([createdAt])
+  @@index([resourceType])
+  @@index([resourceId])
+  @@index([module, createdAt])
+  @@map("audit_logs")
+}
+
+enum AlertType {
+  FAILED_LOGIN_SPIKE
+  TWO_FACTOR_FAILURE_SPIKE
+  PERMISSION_DENIED_SPIKE
+  USER_DISABLED_EVENT
+  ROLE_ASSIGNMENT_EVENT
+  SECURITY_CONFIGURATION_CHANGED
+}
+
+enum AlertSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AlertStatus {
+  OPEN
+  INVESTIGATING
+  RESOLVED
+  FALSE_POSITIVE
+}
+
+enum IncidentStatus {
+  OPEN
+  INVESTIGATING
+  RESOLVED
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model SecurityAlert {
+  id                String        @id @default(uuid())
+  type              AlertType
+  severity          AlertSeverity
+  title             String
+  description       String?
+  status            AlertStatus   @default(OPEN)
+  metadata          Json?
+  createdAt         DateTime      @default(now())
+  resolvedAt        DateTime?
+  resolvedBy        String?
+  resolvedByUserId  String?
+  resolutionReason  String?
+  resolutionNotes   String?
+  fingerprint       String?
+  occurrences       Int           @default(1)
+  lastSeenAt        DateTime      @default(now())
+  incidents         SecurityIncident[]
+  resolver          InternalUser? @relation(fields: [resolvedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([type])
+  @@index([severity])
+  @@index([status])
+  @@index([createdAt])
+  @@index([resolvedByUserId])
+  @@index([fingerprint])
+  @@index([lastSeenAt])
+  @@map("security_alerts")
+}
+
+model SecurityIncident {
+  id              String        @id @default(uuid())
+  alertId         String?
+  status          IncidentStatus @default(OPEN)
+  assignedTo      String?
+  assignedToUserId String?
+  notes           String?
+  createdAt       DateTime      @default(now())
+  resolvedAt      DateTime?
+  alert           SecurityAlert? @relation(fields: [alertId], references: [id])
+  assignee        InternalUser?  @relation(fields: [assignedToUserId], references: [id], onDelete: SetNull)
+
+  @@index([alertId])
+  @@index([status])
+  @@index([assignedTo])
+  @@index([createdAt])
+  @@index([assignedToUserId])
+  @@map("security_incidents")
+}
+
+model UserRiskProfile {
+  id               String    @id @default(uuid())
+  userId           String    @unique
+  riskScore        Int       @default(0)
+  riskLevel        RiskLevel @default(LOW)
+  lastCalculatedAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([riskLevel])
+  @@index([riskScore])
+  @@map("user_risk_profiles")
+}
+
+enum CorrelationStatus {
+  OPEN
+  INVESTIGATING
+  RESOLVED
+  FALSE_POSITIVE
+}
+
+enum EngineType {
+  ALERT_DETECTION
+  RISK_RECALCULATION
+}
+
+enum EngineExecutionStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model SecurityEngineExecution {
+  id            String               @id @default(uuid())
+  engine        EngineType
+  startedAt     DateTime             @default(now())
+  completedAt   DateTime?
+  status        EngineExecutionStatus @default(RUNNING)
+  durationMs    Int?
+  alertsCreated Int                  @default(0)
+  metadata      Json?
+  createdAt     DateTime             @default(now())
+
+  @@index([engine])
+  @@index([status])
+  @@index([startedAt])
+  @@index([engine, startedAt])
+  @@map("security_engine_executions")
+}
+
+model SecurityRule {
+  id             String        @id @default(uuid())
+  code           String        @unique
+  name           String
+  description    String?
+  alertType      AlertType
+  severity       AlertSeverity
+  threshold      Int
+  windowMinutes  Int           @default(15)
+  enabled        Boolean       @default(true)
+  autoCreateIncident          Boolean       @default(false)
+  incidentSeverityThreshold   AlertSeverity @default(HIGH)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([alertType])
+  @@index([enabled])
+  @@map("security_rules")
+}
+
+model UserRiskHistory {
+  id          String    @id @default(uuid())
+  userId      String
+  riskScore   Int
+  riskLevel   RiskLevel
+  breakdown   Json?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@map("user_risk_histories")
+}
+
+model SecurityRuleHistory {
+  id                    String   @id @default(uuid())
+  ruleId                String
+  previousConfiguration Json?
+  newConfiguration      Json?
+  changedBy             String?
+  createdAt             DateTime @default(now())
+
+  @@index([ruleId])
+  @@index([createdAt])
+  @@index([ruleId, createdAt])
+  @@map("security_rule_histories")
+}
+
+model CorrelationAlert {
+  id            String            @id @default(uuid())
+  type          String
+  severity      AlertSeverity
+  sourceAlerts  String[]
+  description   String?
+  status        CorrelationStatus @default(OPEN)
+  createdAt     DateTime          @default(now())
+  resolvedAt    DateTime?
+
+  @@index([status])
+  @@index([severity])
+  @@index([createdAt])
+  @@index([type])
+  @@map("correlation_alerts")
+}

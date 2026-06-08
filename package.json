@@ -1,0 +1,52 @@
+{
+  "name": "solvia-admin",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Solvia Administration Centrale - Enterprise administration platform",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "dev:backend": "npm run dev --workspace=backend",
+    "build:frontend": "npm run build --workspace=frontend",
+    "build:backend": "npm run build --workspace=backend",
+    "lint:frontend": "npm run lint --workspace=frontend",
+    "lint:backend": "npm run lint --workspace=backend",
+    "typecheck:frontend": "npm run typecheck --workspace=frontend",
+    "typecheck:backend": "npm run typecheck --workspace=backend",
+    "test:frontend": "npm run test --workspace=frontend",
+    "test:backend": "npm run test --workspace=backend",
+    "lint": "npm run lint:frontend && npm run lint:backend",
+    "typecheck": "npm run typecheck:frontend && npm run typecheck:backend",
+    "build": "npm run build:frontend && npm run build:backend",
+    "test": "npm run test:frontend && npm run test:backend",
+    "prepare": "husky"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "lint-staged": {
+    "backend/src/**/*.ts": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "frontend/src/**/*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.7"
+  },
+  "dependencies": {
+    "@nestjs/event-emitter": "^3.1.0",
+    "otplib": "^13.4.1",
+    "qrcode": "^1.5.4"
+  }
+}
