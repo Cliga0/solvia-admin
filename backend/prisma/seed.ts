@@ -28,6 +28,11 @@ const SYSTEM_PERMISSIONS = [
   { code: "system.settings.read", description: "View system settings" },
   { code: "system.settings.update", description: "Update system settings" },
   { code: "dashboard.read", description: "View dashboard" },
+  { code: "security.read", description: "View security operations center" },
+  { code: "security.alerts.read", description: "View security alerts" },
+  { code: "security.alerts.manage", description: "Manage security alerts" },
+  { code: "security.incidents.read", description: "View security incidents" },
+  { code: "security.incidents.manage", description: "Manage security incidents" },
 ] as const;
 
 const ROLE_PERMISSION_MAP: Record<string, string[]> = {
@@ -47,6 +52,11 @@ const ROLE_PERMISSION_MAP: Record<string, string[]> = {
     "system.settings.read",
     "system.settings.update",
     "dashboard.read",
+    "security.read",
+    "security.alerts.read",
+    "security.alerts.manage",
+    "security.incidents.read",
+    "security.incidents.manage",
   ],
   PLATFORM_ADMIN: [
     "users.read",
@@ -59,6 +69,9 @@ const ROLE_PERMISSION_MAP: Record<string, string[]> = {
     "system.settings.read",
     "system.settings.update",
     "dashboard.read",
+    "security.read",
+    "security.alerts.read",
+    "security.incidents.read",
   ],
   SECURITY_MANAGER: [
     "users.read",
@@ -68,6 +81,11 @@ const ROLE_PERMISSION_MAP: Record<string, string[]> = {
     "audit.read",
     "system.settings.read",
     "dashboard.read",
+    "security.read",
+    "security.alerts.read",
+    "security.alerts.manage",
+    "security.incidents.read",
+    "security.incidents.manage",
   ],
   FINANCE_MANAGER: [
     "users.read",

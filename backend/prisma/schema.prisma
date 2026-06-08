@@ -196,3 +196,89 @@ model AuditLog {
   @@index([module, createdAt])
   @@map("audit_logs")
 }
+
+enum AlertType {
+  FAILED_LOGIN_SPIKE
+  TWO_FACTOR_FAILURE_SPIKE
+  PERMISSION_DENIED_SPIKE
+  USER_DISABLED_EVENT
+  ROLE_ASSIGNMENT_EVENT
+  SECURITY_CONFIGURATION_CHANGED
+}
+
+enum AlertSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AlertStatus {
+  OPEN
+  INVESTIGATING
+  RESOLVED
+  FALSE_POSITIVE
+}
+
+enum IncidentStatus {
+  OPEN
+  INVESTIGATING
+  RESOLVED
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model SecurityAlert {
+  id          String        @id @default(uuid())
+  type        AlertType
+  severity    AlertSeverity
+  title       String
+  description String?
+  status      AlertStatus   @default(OPEN)
+  metadata    Json?
+  createdAt   DateTime      @default(now())
+  resolvedAt  DateTime?
+  resolvedBy  String?
+  incidents   SecurityIncident[]
+
+  @@index([type])
+  @@index([severity])
+  @@index([status])
+  @@index([createdAt])
+  @@map("security_alerts")
+}
+
+model SecurityIncident {
+  id          String        @id @default(uuid())
+  alertId     String?
+  status      IncidentStatus @default(OPEN)
+  assignedTo  String?
+  notes       String?
+  createdAt   DateTime      @default(now())
+  resolvedAt  DateTime?
+  alert       SecurityAlert? @relation(fields: [alertId], references: [id])
+
+  @@index([alertId])
+  @@index([status])
+  @@index([assignedTo])
+  @@index([createdAt])
+  @@map("security_incidents")
+}
+
+model UserRiskProfile {
+  id               String    @id @default(uuid())
+  userId           String    @unique
+  riskScore        Int       @default(0)
+  riskLevel        RiskLevel @default(LOW)
+  lastCalculatedAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([riskLevel])
+  @@index([riskScore])
+  @@map("user_risk_profiles")
+}

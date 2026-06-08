@@ -1,0 +1,110 @@
+export type AlertType =
+  | "FAILED_LOGIN_SPIKE"
+  | "TWO_FACTOR_FAILURE_SPIKE"
+  | "PERMISSION_DENIED_SPIKE"
+  | "USER_DISABLED_EVENT"
+  | "ROLE_ASSIGNMENT_EVENT"
+  | "SECURITY_CONFIGURATION_CHANGED";
+
+export type AlertSeverity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+export type AlertStatus = "OPEN" | "INVESTIGATING" | "RESOLVED" | "FALSE_POSITIVE";
+export type IncidentStatus = "OPEN" | "INVESTIGATING" | "RESOLVED";
+export type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+
+export interface SecurityAlert {
+  id: string;
+  type: AlertType;
+  severity: AlertSeverity;
+  title: string;
+  description: string | null;
+  status: AlertStatus;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  resolvedAt: string | null;
+  resolvedBy: string | null;
+}
+
+export interface SecurityIncident {
+  id: string;
+  alertId: string | null;
+  status: IncidentStatus;
+  assignedTo: string | null;
+  notes: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
+export interface UserRiskProfile {
+  userId: string;
+  riskScore: number;
+  riskLevel: RiskLevel;
+  lastCalculatedAt: string;
+}
+
+export interface TimelineEntry {
+  id: string;
+  event: string;
+  module: string;
+  ip: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export interface SecurityTimeline {
+  userId: string;
+  events: TimelineEntry[];
+}
+
+export interface SecurityDashboardData {
+  openAlerts: number;
+  criticalAlerts: number;
+  activeIncidents: number;
+  highRiskUsers: number;
+  failedLoginsToday: number;
+  securityEventsToday: number;
+  recentAlerts: {
+    id: string;
+    type: AlertType;
+    severity: AlertSeverity;
+    title: string;
+    status: AlertStatus;
+    createdAt: string;
+  }[];
+}
+
+export interface AlertSearchResponse {
+  data: SecurityAlert[];
+  pagination: { page: number; limit: number; total: number; pages: number };
+}
+
+export interface IncidentSearchResponse {
+  data: SecurityIncident[];
+  pagination: { page: number; limit: number; total: number; pages: number };
+}
+
+export const SEVERITY_COLORS: Record<AlertSeverity, string> = {
+  LOW: "bg-success-100 text-success-800",
+  MEDIUM: "bg-warning-100 text-warning-800",
+  HIGH: "bg-error-100 text-error-800",
+  CRITICAL: "bg-error-200 text-error-900 font-semibold",
+};
+
+export const ALERT_STATUS_COLORS: Record<AlertStatus, string> = {
+  OPEN: "bg-error-100 text-error-800",
+  INVESTIGATING: "bg-warning-100 text-warning-800",
+  RESOLVED: "bg-success-100 text-success-800",
+  FALSE_POSITIVE: "bg-muted text-muted-foreground",
+};
+
+export const INCIDENT_STATUS_COLORS: Record<IncidentStatus, string> = {
+  OPEN: "bg-error-100 text-error-800",
+  INVESTIGATING: "bg-warning-100 text-warning-800",
+  RESOLVED: "bg-success-100 text-success-800",
+};
+
+export const RISK_LEVEL_COLORS: Record<RiskLevel, string> = {
+  LOW: "bg-success-100 text-success-800",
+  MEDIUM: "bg-warning-100 text-warning-800",
+  HIGH: "bg-error-100 text-error-800",
+  CRITICAL: "bg-error-200 text-error-900 font-semibold",
+};
