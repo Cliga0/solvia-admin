@@ -10,6 +10,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { TriangleAlert as AlertTriangle, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -153,5 +154,147 @@ export function DeactivateConfirmDialog({
       description={`Are you sure you want to deactivate "${userName}"? They will lose access immediately.`}
       confirmLabel="Deactivate"
     />
+  );
+}
+
+interface SuspendConfirmDialogProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  userName: string;
+  reason?: string;
+  onReasonChange?: (reason: string) => void;
+  onConfirm: (reason: string) => void | Promise<void>;
+  loading?: boolean;
+  trigger?: React.ReactNode;
+}
+
+export function SuspendConfirmDialog({
+  userName,
+  reason = "",
+  onReasonChange,
+  onConfirm,
+  ...props
+}: SuspendConfirmDialogProps) {
+  const [internalReason, setInternalReason] = useState("");
+  const currentReason = reason || internalReason;
+  const handleReasonChange = onReasonChange || setInternalReason;
+
+  const handleConfirm = async () => {
+    await onConfirm(currentReason || "Administrative action");
+  };
+
+  return (
+    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
+      {props.trigger && <DialogTrigger>{props.trigger}</DialogTrigger>}
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <div className="mx-auto sm:mx-0 mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-warning-100">
+            <ShieldAlert className="h-6 w-6 text-warning-600" />
+          </div>
+          <DialogTitle>Suspend User</DialogTitle>
+          <DialogDescription>
+            Are you sure you want to suspend &quot;{userName}&quot;? They will lose access immediately.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2 py-4">
+          <label htmlFor="suspend-reason" className="text-sm font-medium">
+            Reason <span className="text-muted-foreground">(optional)</span>
+          </label>
+          <Input
+            id="suspend-reason"
+            placeholder="Enter reason for suspension..."
+            value={currentReason}
+            onChange={(e) => handleReasonChange(e.target.value)}
+            disabled={props.loading}
+          />
+        </div>
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button
+            variant="outline"
+            onClick={() => props.onOpenChange?.(false)}
+            disabled={props.loading}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={handleConfirm}
+            disabled={props.loading}
+          >
+            {props.loading ? "Suspending..." : "Suspend"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+interface BulkSuspendConfirmDialogProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  count: number;
+  reason?: string;
+  onReasonChange?: (reason: string) => void;
+  onConfirm: (reason: string) => void | Promise<void>;
+  loading?: boolean;
+}
+
+export function BulkSuspendConfirmDialog({
+  count,
+  reason = "",
+  onReasonChange,
+  onConfirm,
+  ...props
+}: BulkSuspendConfirmDialogProps) {
+  const [internalReason, setInternalReason] = useState("");
+  const currentReason = reason || internalReason;
+  const handleReasonChange = onReasonChange || setInternalReason;
+
+  const handleConfirm = async () => {
+    await onConfirm(currentReason || "Administrative action");
+  };
+
+  return (
+    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <div className="mx-auto sm:mx-0 mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-warning-100">
+            <ShieldAlert className="h-6 w-6 text-warning-600" />
+          </div>
+          <DialogTitle>Suspend {count} Users</DialogTitle>
+          <DialogDescription>
+            Are you sure you want to suspend {count} selected users? They will lose access immediately.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2 py-4">
+          <label htmlFor="bulk-suspend-reason" className="text-sm font-medium">
+            Reason <span className="text-muted-foreground">(optional)</span>
+          </label>
+          <Input
+            id="bulk-suspend-reason"
+            placeholder="Enter reason for suspension..."
+            value={currentReason}
+            onChange={(e) => handleReasonChange(e.target.value)}
+            disabled={props.loading}
+          />
+        </div>
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button
+            variant="outline"
+            onClick={() => props.onOpenChange?.(false)}
+            disabled={props.loading}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={handleConfirm}
+            disabled={props.loading}
+          >
+            {props.loading ? "Suspending..." : "Suspend All"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

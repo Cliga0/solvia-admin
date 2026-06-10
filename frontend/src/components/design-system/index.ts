@@ -18,6 +18,8 @@ export {
   ConfirmDialog,
   DeleteConfirmDialog,
   DeactivateConfirmDialog,
+  SuspendConfirmDialog,
+  BulkSuspendConfirmDialog,
   type ConfirmVariant,
 } from "./confirm-dialog";
 export { ChartWrapper, ChartLegend, StatChange } from "./charts";

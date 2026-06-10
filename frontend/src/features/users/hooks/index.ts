@@ -14,4 +14,8 @@ export {
   useUnsuspendUser,
   useAssignRole,
   useRemoveRole,
+  useBulkActivateUsers,
+  useBulkDeactivateUsers,
+  useBulkSuspendUsers,
+  useBulkDeleteUsers,
 } from "./use-users-hooks";
