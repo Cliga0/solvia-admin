@@ -9,6 +9,12 @@ import type {
   AssignRoleData,
   LifecycleActionData,
   UserSecurityProfile,
+  AuditQueryParams,
+  AuditSearchResponse,
+  UserRiskProfile,
+  SecurityTimeline,
+  AlertQueryParams,
+  AlertSearchResponse,
 } from "../types";
 
 export const usersApi = {
@@ -93,5 +99,47 @@ export const usersApi = {
   // Security Profile
   getSecurityProfile(userId: string): Promise<UserSecurityProfile> {
     return apiClient.get<UserSecurityProfile>(`/users/${userId}/security-profile`);
+  },
+
+  // Audit (GET /audit with userId filter)
+  getAuditLogs(params: AuditQueryParams): Promise<AuditSearchResponse> {
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.set("page", String(params.page));
+    if (params.limit) queryParams.set("limit", String(params.limit));
+    if (params.event) queryParams.set("event", params.event);
+    if (params.module) queryParams.set("module", params.module);
+    if (params.userId) queryParams.set("userId", params.userId);
+    if (params.resourceType) queryParams.set("resourceType", params.resourceType);
+    if (params.resourceId) queryParams.set("resourceId", params.resourceId);
+    if (params.dateFrom) queryParams.set("dateFrom", params.dateFrom);
+    if (params.dateTo) queryParams.set("dateTo", params.dateTo);
+    if (params.sortDirection) queryParams.set("sortDirection", params.sortDirection);
+    const queryString = queryParams.toString();
+    return apiClient.get<AuditSearchResponse>(`/audit${queryString ? `?${queryString}` : ""}`);
+  },
+
+  // Risk Profile (GET /security/users/:id/risk)
+  getUserRisk(userId: string): Promise<UserRiskProfile> {
+    return apiClient.get<UserRiskProfile>(`/security/users/${userId}/risk`);
+  },
+
+  // Security Timeline (GET /security/users/:id/timeline)
+  getUserSecurityTimeline(userId: string): Promise<SecurityTimeline> {
+    return apiClient.get<SecurityTimeline>(`/security/users/${userId}/timeline`);
+  },
+
+  // Security Alerts (GET /security/alerts)
+  getAlerts(params: AlertQueryParams): Promise<AlertSearchResponse> {
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.set("page", String(params.page));
+    if (params.limit) queryParams.set("limit", String(params.limit));
+    if (params.type) queryParams.set("type", params.type);
+    if (params.severity) queryParams.set("severity", params.severity);
+    if (params.status) queryParams.set("status", params.status);
+    if (params.dateFrom) queryParams.set("dateFrom", params.dateFrom);
+    if (params.dateTo) queryParams.set("dateTo", params.dateTo);
+    if (params.sortDirection) queryParams.set("sortDirection", params.sortDirection);
+    const queryString = queryParams.toString();
+    return apiClient.get<AlertSearchResponse>(`/security/alerts${queryString ? `?${queryString}` : ""}`);
   },
 };

@@ -3,3 +3,8 @@ export { UserAvatar, UserNameCell } from "./user-avatar";
 export { UserStatusActions } from "./user-status-actions";
 export { UserDetailTabs } from "./user-detail-tabs";
 export { UserDetailDrawer } from "./user-detail-drawer";
+export { UserKpiGrid, RiskScoreCard, RiskBreakdownGrid } from "./user-kpi-cards";
+export { UserSessionsTable, UserSessionsTableSkeleton } from "./user-sessions-table";
+export { UserAuditTimeline } from "./user-audit-timeline";
+export { UserSecurityAlertsPanel } from "./user-security-alerts-panel";
+export { IntegrationPlaceholder } from "./integration-placeholder";

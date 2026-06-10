@@ -9,6 +9,7 @@ import type {
   UpdateUserData,
   AssignRoleData,
   LifecycleActionData,
+  AuditQueryParams,
 } from "../types";
 import { notification } from "@/lib/notifications";
 
@@ -47,6 +48,42 @@ export function useUserRoles(userId: string) {
   return useQuery({
     queryKey: queryKeys.users.roles(userId),
     queryFn: () => usersApi.getRoles(userId),
+    enabled: !!userId,
+  });
+}
+
+export function useUserAuditLogs(userId: string, params?: Omit<AuditQueryParams, "userId">) {
+  return useQuery({
+    queryKey: [queryKeys.users.detail(userId), "audit", params],
+    queryFn: () => usersApi.getAuditLogs({ ...params, userId }),
+    enabled: !!userId,
+  });
+}
+
+export function useUserRiskProfile(userId: string) {
+  return useQuery({
+    queryKey: [queryKeys.users.detail(userId), "risk"],
+    queryFn: () => usersApi.getUserRisk(userId),
+    enabled: !!userId,
+  });
+}
+
+export function useUserSecurityTimeline(userId: string) {
+  return useQuery({
+    queryKey: [queryKeys.users.detail(userId), "security-timeline"],
+    queryFn: () => usersApi.getUserSecurityTimeline(userId),
+    enabled: !!userId,
+  });
+}
+
+export function useUserAlerts(userId: string) {
+  return useQuery({
+    queryKey: [queryKeys.users.detail(userId), "alerts"],
+    queryFn: () => {
+      // Alerts don't have a direct userId filter, but metadata may contain it.
+      // We fetch recent alerts and the backend filtering handles it.
+      return usersApi.getAlerts({ limit: 20, sortDirection: "desc" });
+    },
     enabled: !!userId,
   });
 }

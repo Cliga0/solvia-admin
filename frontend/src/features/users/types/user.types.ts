@@ -83,3 +83,100 @@ export interface AssignRoleData {
 export interface LifecycleActionData {
   reason?: string;
 }
+
+// Audit types (from GET /audit)
+export interface AuditLogEntry {
+  id: string;
+  userId: string | null;
+  event: string;
+  module: string;
+  resourceType: string | null;
+  resourceId: string | null;
+  ip: string | null;
+  userAgent: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export interface AuditQueryParams {
+  page?: number;
+  limit?: number;
+  event?: string;
+  module?: string;
+  userId?: string;
+  resourceType?: string;
+  resourceId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  sortDirection?: "asc" | "desc";
+}
+
+export interface AuditSearchResponse {
+  data: AuditLogEntry[];
+  pagination: UsersPagination;
+}
+
+// Risk types (from GET /security/users/:id/risk)
+export interface UserRiskProfile {
+  userId: string;
+  riskScore: number;
+  riskLevel: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  lastCalculatedAt: string;
+  breakdown: {
+    failedLogins: number;
+    twoFactorFailures: number;
+    passwordResets: number;
+    roleChanges: number;
+    accountDisabled: number;
+    securityIncidents: number;
+  };
+}
+
+// Security timeline (from GET /security/users/:id/timeline)
+export interface SecurityTimelineEntry {
+  id: string;
+  event: string;
+  module: string;
+  ip: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export interface SecurityTimeline {
+  userId: string;
+  events: SecurityTimelineEntry[];
+}
+
+// Alert types (from GET /security/alerts)
+export interface SecurityAlert {
+  id: string;
+  type: string;
+  severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  title: string;
+  description: string | null;
+  status: "OPEN" | "INVESTIGATING" | "RESOLVED" | "FALSE_POSITIVE";
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  resolvedAt: string | null;
+  resolvedBy: string | null;
+  resolvedByUserId: string | null;
+  resolvedByEmail: string | null;
+  resolutionReason: string | null;
+  resolutionNotes: string | null;
+}
+
+export interface AlertQueryParams {
+  page?: number;
+  limit?: number;
+  type?: string;
+  severity?: string;
+  status?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  sortDirection?: "asc" | "desc";
+}
+
+export interface AlertSearchResponse {
+  data: SecurityAlert[];
+  pagination: UsersPagination;
+}
