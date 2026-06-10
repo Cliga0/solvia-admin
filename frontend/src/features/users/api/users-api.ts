@@ -85,4 +85,20 @@ export const usersApi = {
     const queryParams = params?.limit ? `?limit=${params.limit}` : "";
     return apiClient.get<unknown[]>(`/users/${userId}/activity${queryParams}`);
   },
+
+  bulkActivate(ids: string[]): Promise<{ success: number; failed: number }> {
+    return apiClient.post<{ success: number; failed: number }>("/users/bulk/activate", { ids });
+  },
+
+  bulkDeactivate(ids: string[]): Promise<{ success: number; failed: number }> {
+    return apiClient.post<{ success: number; failed: number }>("/users/bulk/deactivate", { ids });
+  },
+
+  bulkSuspend(ids: string[], reason: string): Promise<{ success: number; failed: number }> {
+    return apiClient.post<{ success: number; failed: number }>("/users/bulk/suspend", { ids, reason });
+  },
+
+  bulkDelete(ids: string[]): Promise<{ success: number; failed: number }> {
+    return apiClient.post<{ success: number; failed: number }>("/users/bulk/delete", { ids });
+  },
 };

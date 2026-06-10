@@ -4,26 +4,30 @@ import { useState, useMemo } from "react";
 import { PageHeader, StatCard } from "@/components/design-system";
 import { DataTable, FilterBar, BulkActions } from "@/components/tables";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { SkeletonCard, SkeletonTable } from "@/components/ui/skeleton";
 import { UserStatusBadge } from "@/components/design-system/status-badge";
-import { DeleteConfirmDialog } from "@/components/design-system/confirm-dialog";
+import { DeleteConfirmDialog, SuspendConfirmDialog, BulkSuspendConfirmDialog } from "@/components/design-system/confirm-dialog";
+import { EmptyState } from "@/components/states/empty-state";
+import { ErrorState } from "@/components/states/error-state";
 import { Can } from "@/features/auth";
 import { UserNameCell } from "@/features/users/components/user-avatar";
 import { UserStatusActions } from "@/features/users/components/user-status-actions";
 import { UserForm } from "@/features/users/components/user-form";
+import { UserDetailDrawer } from "@/features/users/components/user-detail-drawer";
 import {
   useUsersDashboard,
   useUsers,
   useCreateUser,
   useUpdateUser,
   useDeleteUser,
-  useActivateUser,
-  useDeactivateUser,
   useSuspendUser,
-  useUnsuspendUser,
+  useBulkActivateUsers,
+  useBulkDeactivateUsers,
+  useBulkSuspendUsers,
+  useBulkDeleteUsers,
 } from "@/features/users/hooks";
-import { Plus, Users as UsersIcon, UserCheck, UserX, Clock, TriangleAlert as AlertTriangle } from "lucide-react";
+import { Plus, Users as UsersIcon, UserCheck, UserX, Clock } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { User, UserStatus, UsersQueryParams } from "@/features/users/types";
 import type { CreateUserInput, UpdateUserInput } from "@/features/users/schemas";
@@ -37,9 +41,13 @@ export default function UsersPage() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
   const [suspendingUser, setSuspendingUser] = useState<User | null>(null);
+  const [drawerUserId, setDrawerUserId] = useState<string | null>(null);
+  const [showDrawer, setShowDrawer] = useState(false);
+  const [bulkSuspendReason, setBulkSuspendReason] = useState("");
+  const [showBulkSuspendDialog, setShowBulkSuspendDialog] = useState(false);
 
   const { data: dashboard, isLoading: dashboardLoading } = useUsersDashboard();
-  const { data: usersData, isLoading: usersLoading } = useUsers({
+  const { data: usersData, isLoading: usersLoading, isError: usersError, error } = useUsers({
     ...params,
     search: search || undefined,
     status: statusFilter,
@@ -47,21 +55,41 @@ export default function UsersPage() {
   const createUser = useCreateUser();
   const updateUser = useUpdateUser(editingUser?.id || "");
   const deleteUser = useDeleteUser();
-  const activateUser = useActivateUser(editingUser?.id || "");
-  const deactivateUser = useDeactivateUser(editingUser?.id || "");
   const suspendUser = useSuspendUser(suspendingUser?.id || "");
-  const unsuspendUser = useUnsuspendUser(editingUser?.id || "");
+
+  const bulkActivate = useBulkActivateUsers();
+  const bulkDeactivate = useBulkDeactivateUsers();
+  const bulkSuspend = useBulkSuspendUsers();
+  const bulkDelete = useBulkDeleteUsers();
+
+  const handleRowClick = (userId: string) => {
+    setDrawerUserId(userId);
+    setShowDrawer(true);
+  };
+
+  const handleEditFromDrawer = (userId: string) => {
+    const user = usersData?.data.find((u) => u.id === userId);
+    if (user) {
+      setEditingUser(user);
+    }
+  };
 
   const columns: ColumnDef<User>[] = useMemo(() => [
     {
       accessorKey: "name",
       header: "User",
       cell: ({ row }) => (
-        <UserNameCell
-          firstName={row.original.firstName}
-          lastName={row.original.lastName}
-          email={row.original.email}
-        />
+        <button
+          type="button"
+          onClick={() => handleRowClick(row.original.id)}
+          className="text-left hover:opacity-80 transition-opacity"
+        >
+          <UserNameCell
+            firstName={row.original.firstName}
+            lastName={row.original.lastName}
+            email={row.original.email}
+          />
+        </button>
       ),
     },
     {
@@ -93,15 +121,12 @@ export default function UsersPage() {
         <UserStatusActions
           userId={row.original.id}
           status={row.original.status}
-          onActivate={() => activateUser.mutate()}
-          onDeactivate={() => deactivateUser.mutate()}
           onSuspend={() => setSuspendingUser(row.original)}
-          onUnsuspend={() => unsuspendUser.mutate()}
           onDelete={() => setDeletingUser(row.original)}
         />
       ),
     },
-  ], [activateUser, deactivateUser, unsuspendUser]);
+  ], []);
 
   const handlePageChange = (page: number) => {
     setParams((prev) => ({ ...prev, page: page + 1 }));
@@ -133,6 +158,28 @@ export default function UsersPage() {
       await suspendUser.mutateAsync(reason);
       setSuspendingUser(null);
     }
+  };
+
+  const handleBulkActivate = async () => {
+    await bulkActivate.mutateAsync(selectedRows);
+    setSelectedRows([]);
+  };
+
+  const handleBulkDeactivate = async () => {
+    await bulkDeactivate.mutateAsync(selectedRows);
+    setSelectedRows([]);
+  };
+
+  const handleBulkSuspend = async (reason: string) => {
+    await bulkSuspend.mutateAsync({ ids: selectedRows, reason });
+    setSelectedRows([]);
+    setShowBulkSuspendDialog(false);
+    setBulkSuspendReason("");
+  };
+
+  const handleBulkDelete = async () => {
+    await bulkDelete.mutateAsync(selectedRows);
+    setSelectedRows([]);
   };
 
   const filterOptions = [
@@ -220,27 +267,24 @@ export default function UsersPage() {
               {
                 key: "activate",
                 label: "Activate",
-                onClick: () => {
-                  // Handle bulk activate
-                  setSelectedRows([]);
-                },
+                onClick: handleBulkActivate,
               },
               {
                 key: "deactivate",
                 label: "Deactivate",
-                onClick: () => {
-                  // Handle bulk deactivate
-                  setSelectedRows([]);
-                },
+                onClick: handleBulkDeactivate,
               },
               {
                 key: "suspend",
                 label: "Suspend",
                 variant: "destructive",
-                onClick: () => {
-                  // Handle bulk suspend
-                  setSelectedRows([]);
-                },
+                onClick: () => setShowBulkSuspendDialog(true),
+              },
+              {
+                key: "delete",
+                label: "Delete",
+                variant: "destructive",
+                onClick: handleBulkDelete,
               },
             ]}
             onClearSelection={() => setSelectedRows([])}
@@ -249,6 +293,29 @@ export default function UsersPage() {
 
         {usersLoading ? (
           <SkeletonTable rows={10} columns={6} />
+        ) : usersError ? (
+          <ErrorState
+            title="Failed to load users"
+            message={error?.message || "An error occurred while loading users."}
+            onRetry={() => window.location.reload()}
+          />
+        ) : usersData?.data.length === 0 ? (
+          <EmptyState
+            title="No users found"
+            message={search || statusFilter
+              ? "Try adjusting your search or filter criteria."
+              : "Get started by creating your first user."}
+            action={
+              !search && !statusFilter && (
+                <Can permission="users.create">
+                  <Button onClick={() => setShowCreateDialog(true)} size="sm">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add User
+                  </Button>
+                </Can>
+              )
+            }
+          />
         ) : (
           <DataTable
             columns={columns}
@@ -263,9 +330,18 @@ export default function UsersPage() {
                 handlePageChange(page);
               }
             }}
+            onRowSelection={setSelectedRows}
           />
         )}
       </div>
+
+      {/* User Detail Drawer */}
+      <UserDetailDrawer
+        userId={drawerUserId}
+        open={showDrawer}
+        onOpenChange={setShowDrawer}
+        onEdit={handleEditFromDrawer}
+      />
 
       {/* Create User Dialog */}
       <Dialog open={showCreateDialog || !!editingUser} onOpenChange={(open) => {
@@ -307,32 +383,24 @@ export default function UsersPage() {
       />
 
       {/* Suspend Dialog */}
-      <Dialog open={!!suspendingUser} onOpenChange={(open) => !open && setSuspendingUser(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-warning-600" />
-              Suspend User
-            </DialogTitle>
-            <DialogDescription>
-              Are you sure you want to suspend {suspendingUser?.firstName} {suspendingUser?.lastName}?
-              They will lose access immediately.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSuspendingUser(null)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => handleSuspend("Administrative action")}
-              disabled={suspendUser.isPending}
-            >
-              {suspendUser.isPending ? "Suspending..." : "Suspend"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <SuspendConfirmDialog
+        open={!!suspendingUser}
+        onOpenChange={(open) => !open && setSuspendingUser(null)}
+        userName={suspendingUser ? `${suspendingUser.firstName} ${suspendingUser.lastName}` : ""}
+        onConfirm={handleSuspend}
+        loading={suspendUser.isPending}
+      />
+
+      {/* Bulk Suspend Dialog */}
+      <BulkSuspendConfirmDialog
+        open={showBulkSuspendDialog}
+        onOpenChange={setShowBulkSuspendDialog}
+        count={selectedRows.length}
+        reason={bulkSuspendReason}
+        onReasonChange={setBulkSuspendReason}
+        onConfirm={handleBulkSuspend}
+        loading={bulkSuspend.isPending}
+      />
     </div>
   );
 }

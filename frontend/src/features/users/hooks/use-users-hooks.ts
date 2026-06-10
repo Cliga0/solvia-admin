@@ -200,3 +200,80 @@ export function useRemoveRole(userId: string) {
     },
   });
 }
+
+export function useBulkActivateUsers() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (ids: string[]) => usersApi.bulkActivate(ids),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.all() });
+      if (result.failed > 0) {
+        notification.warning(`Activated ${result.success} users, ${result.failed} failed`);
+      } else {
+        notification.success(`Successfully activated ${result.success} users`);
+      }
+    },
+    onError: (error: Error) => {
+      notification.error(error.message || "Failed to activate users");
+    },
+  });
+}
+
+export function useBulkDeactivateUsers() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (ids: string[]) => usersApi.bulkDeactivate(ids),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.all() });
+      if (result.failed > 0) {
+        notification.warning(`Deactivated ${result.success} users, ${result.failed} failed`);
+      } else {
+        notification.success(`Successfully deactivated ${result.success} users`);
+      }
+    },
+    onError: (error: Error) => {
+      notification.error(error.message || "Failed to deactivate users");
+    },
+  });
+}
+
+export function useBulkSuspendUsers() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ ids, reason }: { ids: string[]; reason: string }) =>
+      usersApi.bulkSuspend(ids, reason),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.all() });
+      if (result.failed > 0) {
+        notification.warning(`Suspended ${result.success} users, ${result.failed} failed`);
+      } else {
+        notification.success(`Successfully suspended ${result.success} users`);
+      }
+    },
+    onError: (error: Error) => {
+      notification.error(error.message || "Failed to suspend users");
+    },
+  });
+}
+
+export function useBulkDeleteUsers() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (ids: string[]) => usersApi.bulkDelete(ids),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.all() });
+      if (result.failed > 0) {
+        notification.warning(`Deleted ${result.success} users, ${result.failed} failed`);
+      } else {
+        notification.success(`Successfully deleted ${result.success} users`);
+      }
+    },
+    onError: (error: Error) => {
+      notification.error(error.message || "Failed to delete users");
+    },
+  });
+}
