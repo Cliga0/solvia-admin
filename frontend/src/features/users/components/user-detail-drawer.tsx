@@ -14,20 +14,35 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserStatusBadge } from "@/components/design-system/status-badge";
-import { ConfirmDialog, DeleteConfirmDialog } from "@/components/design-system/confirm-dialog";
+import { ConfirmDialog } from "@/components/design-system/confirm-dialog";
 import { UserAvatar } from "./user-avatar";
 import {
   useUser,
   useUserPermissions,
-  useUserActivity,
+  useUserSecurityProfile,
   useActivateUser,
-  useDeactivateUser,
   useSuspendUser,
-  useUnsuspendUser,
-  useDeleteUser,
+  useDisableUser,
+  useArchiveUser,
+  useForceLogout,
 } from "../hooks";
 import { Can } from "@/features/auth";
-import { Mail, Phone, Calendar, Clock, Shield, ShieldCheck, ShieldAlert, Key, Activity, UserCheck, UserX, Ban, RotateCcw, Trash2, CreditCard as Edit, ExternalLink } from "lucide-react";
+import {
+  Mail,
+  Calendar,
+  Clock,
+  Shield,
+  ShieldCheck,
+  ShieldAlert,
+  Key,
+  UserCheck,
+  Ban,
+  UserX,
+  Archive,
+  LogOut,
+  ExternalLink,
+  CreditCard as Edit,
+} from "lucide-react";
 import Link from "next/link";
 
 interface UserDetailDrawerProps {
@@ -44,31 +59,42 @@ export function UserDetailDrawer({
   onEdit,
 }: UserDetailDrawerProps) {
   const [showSuspendDialog, setShowSuspendDialog] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [suspendReason, setSuspendReason] = useState("");
+  const [showDisableDialog, setShowDisableDialog] = useState(false);
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+  const [showForceLogoutDialog, setShowForceLogoutDialog] = useState(false);
+  const [lifecycleReason, setLifecycleReason] = useState("");
 
   const { data: user, isLoading: userLoading } = useUser(userId || "");
   const { data: permissions } = useUserPermissions(userId || "");
-  const { data: activity } = useUserActivity(userId || "", 5);
+  const { data: securityProfile } = useUserSecurityProfile(userId || "");
 
   const activateUser = useActivateUser(userId || "");
-  const deactivateUser = useDeactivateUser(userId || "");
   const suspendUser = useSuspendUser(userId || "");
-  const unsuspendUser = useUnsuspendUser(userId || "");
-  const deleteUser = useDeleteUser();
+  const disableUser = useDisableUser(userId || "");
+  const archiveUser = useArchiveUser(userId || "");
+  const forceLogoutUser = useForceLogout(userId || "");
 
   const handleSuspend = async () => {
-    await suspendUser.mutateAsync(suspendReason || "Administrative action");
+    await suspendUser.mutateAsync({ reason: lifecycleReason || undefined });
     setShowSuspendDialog(false);
-    setSuspendReason("");
+    setLifecycleReason("");
   };
 
-  const handleDelete = async () => {
-    if (userId) {
-      await deleteUser.mutateAsync(userId);
-      setShowDeleteDialog(false);
-      onOpenChange(false);
-    }
+  const handleDisable = async () => {
+    await disableUser.mutateAsync({ reason: lifecycleReason || undefined });
+    setShowDisableDialog(false);
+    setLifecycleReason("");
+  };
+
+  const handleArchive = async () => {
+    await archiveUser.mutateAsync({ reason: lifecycleReason || undefined });
+    setShowArchiveDialog(false);
+    setLifecycleReason("");
+  };
+
+  const handleForceLogout = async () => {
+    await forceLogoutUser.mutateAsync();
+    setShowForceLogoutDialog(false);
   };
 
   const handleAction = (action: () => void) => {
@@ -88,15 +114,10 @@ export function UserDetailDrawer({
               </div>
             ) : user ? (
               <div className="flex items-start gap-4">
-                <UserAvatar
-                  firstName={user.firstName}
-                  lastName={user.lastName}
-                  email={user.email}
-                  size="lg"
-                />
+                <UserAvatar email={user.email} size="lg" />
                 <div className="flex-1 space-y-1">
                   <DrawerTitle className="text-lg">
-                    {user.firstName} {user.lastName}
+                    {user.email}
                   </DrawerTitle>
                   <DrawerDescription className="flex items-center gap-1">
                     <Mail className="h-3 w-3" />
@@ -134,17 +155,6 @@ export function UserDetailDrawer({
                       Activate
                     </Button>
                   )}
-                  {user.status === "ACTIVE" && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-xs gap-1"
-                      onClick={() => handleAction(() => deactivateUser.mutate())}
-                    >
-                      <UserX className="h-3 w-3" />
-                      Deactivate
-                    </Button>
-                  )}
                   {user.status !== "SUSPENDED" && (
                     <Button
                       variant="outline"
@@ -156,17 +166,37 @@ export function UserDetailDrawer({
                       Suspend
                     </Button>
                   )}
-                  {user.status === "SUSPENDED" && (
+                  {user.status !== "DISABLED" && (
                     <Button
                       variant="outline"
                       size="sm"
                       className="h-7 text-xs gap-1"
-                      onClick={() => handleAction(() => unsuspendUser.mutate())}
+                      onClick={() => setShowDisableDialog(true)}
                     >
-                      <RotateCcw className="h-3 w-3" />
-                      Unsuspend
+                      <UserX className="h-3 w-3" />
+                      Disable
                     </Button>
                   )}
+                  {user.status !== "ARCHIVED" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs gap-1"
+                      onClick={() => setShowArchiveDialog(true)}
+                    >
+                      <Archive className="h-3 w-3" />
+                      Archive
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => setShowForceLogoutDialog(true)}
+                  >
+                    <LogOut className="h-3 w-3" />
+                    Force Logout
+                  </Button>
                   {onEdit && (
                     <Button
                       variant="outline"
@@ -203,13 +233,6 @@ export function UserDetailDrawer({
                     <span className="text-muted-foreground">Email:</span>
                     <span>{user.email}</span>
                   </div>
-                  {user.phone && (
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="text-muted-foreground">Phone:</span>
-                      <span>{user.phone}</span>
-                    </div>
-                  )}
                   <div className="flex items-center gap-2">
                     <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
                     <span className="text-muted-foreground">Member since:</span>
@@ -269,6 +292,14 @@ export function UserDetailDrawer({
                       </Badge>
                     )}
                   </div>
+                  {securityProfile?.activeSessions && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Active Sessions</span>
+                      <Badge variant="secondary" className="text-xs">
+                        {securityProfile.activeSessions.filter(s => !s.isRevoked).length}
+                      </Badge>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -277,22 +308,19 @@ export function UserDetailDrawer({
                 <h3 className="text-sm font-medium flex items-center gap-2">
                   <Key className="h-3.5 w-3.5" />
                   Permissions
-                  {Array.isArray(permissions) && permissions.length > 0 && (
+                  {permissions && permissions.length > 0 && (
                     <Badge variant="secondary" className="text-xs">
                       {permissions.length}
                     </Badge>
                   )}
                 </h3>
-                {Array.isArray(permissions) && permissions.length > 0 ? (
+                {permissions && permissions.length > 0 ? (
                   <div className="flex flex-wrap gap-1">
-                    {permissions.slice(0, 5).map((perm, index) => {
-                      const p = perm as { code: string };
-                      return (
-                        <Badge key={index} variant="outline" className="text-xs">
-                          {p.code}
-                        </Badge>
-                      );
-                    })}
+                    {permissions.slice(0, 5).map((code, index) => (
+                      <Badge key={index} variant="outline" className="text-xs">
+                        {code}
+                      </Badge>
+                    ))}
                     {permissions.length > 5 && (
                       <Badge variant="outline" className="text-xs">
                         +{permissions.length - 5} more
@@ -301,34 +329,6 @@ export function UserDetailDrawer({
                   </div>
                 ) : (
                   <p className="text-xs text-muted-foreground">No permissions found</p>
-                )}
-              </div>
-
-              {/* Recent Activity */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-medium flex items-center gap-2">
-                  <Activity className="h-3.5 w-3.5" />
-                  Recent Activity
-                </h3>
-                {Array.isArray(activity) && activity.length > 0 ? (
-                  <div className="space-y-2">
-                    {activity.slice(0, 3).map((item) => {
-                      const a = item as { id: string; action: string; createdAt: string };
-                      return (
-                        <div
-                          key={a.id}
-                          className="flex items-center justify-between text-xs"
-                        >
-                          <span className="truncate">{a.action}</span>
-                          <span className="text-muted-foreground">
-                            {new Date(a.createdAt).toLocaleDateString()}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground">No recent activity</p>
                 )}
               </div>
             </div>
@@ -340,19 +340,6 @@ export function UserDetailDrawer({
                 Close
               </Button>
             </DrawerClose>
-            <Can permission="users.delete">
-              {user && (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="gap-1"
-                  onClick={() => setShowDeleteDialog(true)}
-                >
-                  <Trash2 className="h-3 w-3" />
-                  Delete User
-                </Button>
-              )}
-            </Can>
           </DrawerFooter>
         </DrawerContent>
       </Drawer>
@@ -363,20 +350,46 @@ export function UserDetailDrawer({
         onOpenChange={setShowSuspendDialog}
         variant="warning"
         title="Suspend User"
-        description={`Are you sure you want to suspend ${user?.firstName} ${user?.lastName}? They will lose access immediately.`}
+        description={`Are you sure you want to suspend ${user?.email}? They will lose access immediately.`}
         confirmLabel="Suspend"
         onConfirm={handleSuspend}
         loading={suspendUser.isPending}
       />
 
-      {/* Delete Dialog */}
-      <DeleteConfirmDialog
-        open={showDeleteDialog}
-        onOpenChange={setShowDeleteDialog}
-        itemName={user ? `${user.firstName} ${user.lastName}` : ""}
-        itemType="user"
-        onConfirm={handleDelete}
-        loading={deleteUser.isPending}
+      {/* Disable Dialog */}
+      <ConfirmDialog
+        open={showDisableDialog}
+        onOpenChange={setShowDisableDialog}
+        variant="warning"
+        title="Disable User"
+        description={`Are you sure you want to disable ${user?.email}? They will lose access immediately.`}
+        confirmLabel="Disable"
+        onConfirm={handleDisable}
+        loading={disableUser.isPending}
+      />
+
+      {/* Archive Dialog */}
+      <ConfirmDialog
+        open={showArchiveDialog}
+        onOpenChange={setShowArchiveDialog}
+        variant="warning"
+        title="Archive User"
+        description={`Are you sure you want to archive ${user?.email}? They will lose access immediately.`}
+        confirmLabel="Archive"
+        onConfirm={handleArchive}
+        loading={archiveUser.isPending}
+      />
+
+      {/* Force Logout Dialog */}
+      <ConfirmDialog
+        open={showForceLogoutDialog}
+        onOpenChange={setShowForceLogoutDialog}
+        variant="warning"
+        title="Force Logout"
+        description={`Are you sure you want to revoke all sessions for ${user?.email}?`}
+        confirmLabel="Force Logout"
+        onConfirm={handleForceLogout}
+        loading={forceLogoutUser.isPending}
       />
     </>
   );

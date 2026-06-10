@@ -3,14 +3,15 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-export type UserStatus = "ACTIVE" | "INACTIVE" | "PENDING" | "SUSPENDED";
+export type UserStatus = "ACTIVE" | "SUSPENDED" | "DISABLED" | "PENDING" | "ARCHIVED";
 export type SettingStatus = "ENABLED" | "DISABLED" | "PENDING";
 
 const userStatusVariants: Record<UserStatus, string> = {
   ACTIVE: "bg-success-100 text-success-800 hover:bg-success-100",
-  INACTIVE: "bg-muted text-muted-foreground hover:bg-muted",
-  PENDING: "bg-warning-100 text-warning-800 hover:bg-warning-100",
   SUSPENDED: "bg-error-100 text-error-800 hover:bg-error-100",
+  DISABLED: "bg-muted text-muted-foreground hover:bg-muted",
+  PENDING: "bg-warning-100 text-warning-800 hover:bg-warning-100",
+  ARCHIVED: "bg-muted text-muted-foreground hover:bg-muted",
 };
 
 const settingStatusVariants: Record<SettingStatus, string> = {

@@ -8,15 +8,9 @@ import type {
   CreateUserData,
   UpdateUserData,
   AssignRoleData,
+  LifecycleActionData,
 } from "../types";
 import { notification } from "@/lib/notifications";
-
-export function useUsersDashboard() {
-  return useQuery({
-    queryKey: queryKeys.users.all(),
-    queryFn: () => usersApi.getDashboard(),
-  });
-}
 
 export function useUsers(params?: UsersQueryParams) {
   return useQuery({
@@ -49,13 +43,15 @@ export function useUserSecurityProfile(userId: string) {
   });
 }
 
-export function useUserActivity(userId: string, limit?: number) {
+export function useUserRoles(userId: string) {
   return useQuery({
-    queryKey: [...queryKeys.users.detail(userId), "activity", { limit }],
-    queryFn: () => usersApi.getActivity(userId, { limit }),
+    queryKey: queryKeys.users.roles(userId),
+    queryFn: () => usersApi.getRoles(userId),
     enabled: !!userId,
   });
 }
+
+// CRUD Mutations
 
 export function useCreateUser() {
   const queryClient = useQueryClient();
@@ -88,17 +84,20 @@ export function useUpdateUser(id: string) {
   });
 }
 
-export function useDeleteUser() {
+// Lifecycle Mutations
+
+export function useSuspendUser(id: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => usersApi.delete(id),
+    mutationFn: (data: LifecycleActionData) => usersApi.suspend(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.users.all() });
-      notification.success("User deleted successfully");
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.list() });
+      notification.success("User suspended successfully");
     },
     onError: (error: Error) => {
-      notification.error(error.message || "Failed to delete user");
+      notification.error(error.message || "Failed to suspend user");
     },
   });
 }
@@ -119,53 +118,104 @@ export function useActivateUser(id: string) {
   });
 }
 
-export function useDeactivateUser(id: string) {
+export function useDisableUser(id: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: () => usersApi.deactivate(id),
+    mutationFn: (data: LifecycleActionData) => usersApi.disable(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.users.list() });
-      notification.success("User deactivated successfully");
+      notification.success("User disabled successfully");
     },
     onError: (error: Error) => {
-      notification.error(error.message || "Failed to deactivate user");
+      notification.error(error.message || "Failed to disable user");
     },
   });
 }
 
-export function useSuspendUser(id: string) {
+export function useArchiveUser(id: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (reason: string) => usersApi.suspend(id, reason),
+    mutationFn: (data: LifecycleActionData) => usersApi.archive(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.users.list() });
-      notification.success("User suspended successfully");
+      notification.success("User archived successfully");
     },
     onError: (error: Error) => {
-      notification.error(error.message || "Failed to suspend user");
+      notification.error(error.message || "Failed to archive user");
     },
   });
 }
 
-export function useUnsuspendUser(id: string) {
+// Security Mutations
+
+export function useForceLogout(id: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: () => usersApi.unsuspend(id),
+    mutationFn: () => usersApi.forceLogout(id),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.securityProfile(id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(id) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.users.list() });
-      notification.success("User unsuspended successfully");
+      notification.success("All sessions revoked");
     },
     onError: (error: Error) => {
-      notification.error(error.message || "Failed to unsuspend user");
+      notification.error(error.message || "Failed to force logout");
     },
   });
 }
+
+export function useRevokeSessions(id: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => usersApi.revokeSessions(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.securityProfile(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(id) });
+      notification.success("All sessions revoked");
+    },
+    onError: (error: Error) => {
+      notification.error(error.message || "Failed to revoke sessions");
+    },
+  });
+}
+
+export function useAdminResetPassword(id: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (password: string) => usersApi.adminResetPassword(id, password),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(id) });
+      notification.success("Password reset successfully");
+    },
+    onError: (error: Error) => {
+      notification.error(error.message || "Failed to reset password");
+    },
+  });
+}
+
+export function useAdminDisable2FA(id: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => usersApi.adminDisable2FA(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.securityProfile(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(id) });
+      notification.success("2FA disabled by admin");
+    },
+    onError: (error: Error) => {
+      notification.error(error.message || "Failed to disable 2FA");
+    },
+  });
+}
+
+// RBAC Mutations
 
 export function useAssignRole(userId: string) {
   const queryClient = useQueryClient();
@@ -197,83 +247,6 @@ export function useRemoveRole(userId: string) {
     },
     onError: (error: Error) => {
       notification.error(error.message || "Failed to remove role");
-    },
-  });
-}
-
-export function useBulkActivateUsers() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (ids: string[]) => usersApi.bulkActivate(ids),
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.users.all() });
-      if (result.failed > 0) {
-        notification.warning(`Activated ${result.success} users, ${result.failed} failed`);
-      } else {
-        notification.success(`Successfully activated ${result.success} users`);
-      }
-    },
-    onError: (error: Error) => {
-      notification.error(error.message || "Failed to activate users");
-    },
-  });
-}
-
-export function useBulkDeactivateUsers() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (ids: string[]) => usersApi.bulkDeactivate(ids),
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.users.all() });
-      if (result.failed > 0) {
-        notification.warning(`Deactivated ${result.success} users, ${result.failed} failed`);
-      } else {
-        notification.success(`Successfully deactivated ${result.success} users`);
-      }
-    },
-    onError: (error: Error) => {
-      notification.error(error.message || "Failed to deactivate users");
-    },
-  });
-}
-
-export function useBulkSuspendUsers() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ ids, reason }: { ids: string[]; reason: string }) =>
-      usersApi.bulkSuspend(ids, reason),
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.users.all() });
-      if (result.failed > 0) {
-        notification.warning(`Suspended ${result.success} users, ${result.failed} failed`);
-      } else {
-        notification.success(`Successfully suspended ${result.success} users`);
-      }
-    },
-    onError: (error: Error) => {
-      notification.error(error.message || "Failed to suspend users");
-    },
-  });
-}
-
-export function useBulkDeleteUsers() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (ids: string[]) => usersApi.bulkDelete(ids),
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.users.all() });
-      if (result.failed > 0) {
-        notification.warning(`Deleted ${result.success} users, ${result.failed} failed`);
-      } else {
-        notification.success(`Successfully deleted ${result.success} users`);
-      }
-    },
-    onError: (error: Error) => {
-      notification.error(error.message || "Failed to delete users");
     },
   });
 }

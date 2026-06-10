@@ -16,6 +16,7 @@ interface AuthState {
   setAccessToken: (token: string) => void;
   clearAuth: () => void;
   initialize: () => void;
+  logout: () => Promise<void>;
 }
 
 function setCookie(name: string, value: string, days: number): void {
@@ -31,7 +32,7 @@ function deleteCookie(name: string): void {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       accessToken: null,
       refreshToken: null,
@@ -95,6 +96,25 @@ export const useAuthStore = create<AuthState>()(
         } else {
           set({ isInitialized: true });
         }
+      },
+
+      logout: async () => {
+        const state = get();
+        try {
+          if (state.refreshToken) {
+            await fetch("/api/v1/auth/logout", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                ...(state.accessToken ? { Authorization: `Bearer ${state.accessToken}` } : {}),
+              },
+              body: JSON.stringify({ refreshToken: state.refreshToken }),
+            });
+          }
+        } catch {
+          // logout best-effort
+        }
+        get().clearAuth();
       },
     }),
     {

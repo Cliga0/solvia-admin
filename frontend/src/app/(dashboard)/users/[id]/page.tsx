@@ -8,15 +8,16 @@ import { UserStatusBadge } from "@/components/design-system/status-badge";
 import { UserAvatar } from "@/features/users/components/user-avatar";
 import { UserDetailTabs } from "@/features/users/components/user-detail-tabs";
 import { UserStatusActions } from "@/features/users/components/user-status-actions";
-import { ConfirmDialog, DeleteConfirmDialog } from "@/components/design-system/confirm-dialog";
-import { useUser, useUserPermissions, useUserSecurityProfile, useUserActivity } from "@/features/users/hooks";
 import {
+  useUser,
+  useUserPermissions,
+  useUserSecurityProfile,
   useActivateUser,
-  useDeactivateUser,
   useSuspendUser,
-  useUnsuspendUser,
-  useDeleteUser,
+  useDisableUser,
+  useArchiveUser,
 } from "@/features/users/hooks";
+import { ConfirmDialog } from "@/components/design-system/confirm-dialog";
 import { Can } from "@/features/auth";
 import { ArrowLeft, Mail, Calendar } from "lucide-react";
 import Link from "next/link";
@@ -29,29 +30,31 @@ interface UserDetailPageProps {
 export default function UserDetailPage({ params }: UserDetailPageProps) {
   const { id } = use(params);
   const [showSuspendDialog, setShowSuspendDialog] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [suspendReason, setSuspendReason] = useState("");
+  const [showDisableDialog, setShowDisableDialog] = useState(false);
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false);
 
   const { data: user, isLoading: userLoading } = useUser(id);
   const { data: permissions } = useUserPermissions(id);
   const { data: securityProfile } = useUserSecurityProfile(id);
-  const { data: activity } = useUserActivity(id, 20);
 
   const activateUser = useActivateUser(id);
-  const deactivateUser = useDeactivateUser(id);
   const suspendUser = useSuspendUser(id);
-  const unsuspendUser = useUnsuspendUser(id);
-  const deleteUser = useDeleteUser();
+  const disableUser = useDisableUser(id);
+  const archiveUser = useArchiveUser(id);
 
   const handleSuspend = async () => {
-    await suspendUser.mutateAsync(suspendReason || "Administrative action");
+    await suspendUser.mutateAsync({});
     setShowSuspendDialog(false);
-    setSuspendReason("");
   };
 
-  const handleDelete = async () => {
-    await deleteUser.mutateAsync(id);
-    setShowDeleteDialog(false);
+  const handleDisable = async () => {
+    await disableUser.mutateAsync({});
+    setShowDisableDialog(false);
+  };
+
+  const handleArchive = async () => {
+    await archiveUser.mutateAsync({});
+    setShowArchiveDialog(false);
   };
 
   if (userLoading) {
@@ -92,16 +95,9 @@ export default function UserDetailPage({ params }: UserDetailPageProps) {
       <Card className="p-6">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-4">
-            <UserAvatar
-              firstName={user.firstName}
-              lastName={user.lastName}
-              email={user.email}
-              size="lg"
-            />
+            <UserAvatar email={user.email} size="lg" />
             <div className="space-y-1">
-              <h1 className="text-xl font-semibold">
-                {user.firstName} {user.lastName}
-              </h1>
+              <h1 className="text-xl font-semibold">{user.email}</h1>
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
                 <div className="flex items-center gap-1">
                   <Mail className="h-3.5 w-3.5" />
@@ -124,10 +120,9 @@ export default function UserDetailPage({ params }: UserDetailPageProps) {
                 userId={id}
                 status={user.status}
                 onActivate={() => activateUser.mutate()}
-                onDeactivate={() => deactivateUser.mutate()}
                 onSuspend={() => setShowSuspendDialog(true)}
-                onUnsuspend={() => unsuspendUser.mutate()}
-                onDelete={() => setShowDeleteDialog(true)}
+                onDisable={() => setShowDisableDialog(true)}
+                onArchive={() => setShowArchiveDialog(true)}
               />
             </Can>
           </div>
@@ -136,10 +131,10 @@ export default function UserDetailPage({ params }: UserDetailPageProps) {
 
       {/* User Tabs */}
       <UserDetailTabs
+        userId={id}
         user={user}
         permissions={permissions ?? []}
-        securityProfile={securityProfile ?? {}}
-        activity={activity ?? []}
+        securityProfile={securityProfile ?? null}
       />
 
       {/* Suspend Dialog */}
@@ -148,20 +143,34 @@ export default function UserDetailPage({ params }: UserDetailPageProps) {
         onOpenChange={setShowSuspendDialog}
         variant="warning"
         title="Suspend User"
-        description={`Are you sure you want to suspend ${user.firstName} ${user.lastName}? They will lose access immediately.`}
+        description={`Are you sure you want to suspend ${user.email}? They will lose access immediately.`}
         confirmLabel="Suspend"
         onConfirm={handleSuspend}
         loading={suspendUser.isPending}
       />
 
-      {/* Delete Dialog */}
-      <DeleteConfirmDialog
-        open={showDeleteDialog}
-        onOpenChange={setShowDeleteDialog}
-        itemName={`${user.firstName} ${user.lastName}`}
-        itemType="user"
-        onConfirm={handleDelete}
-        loading={deleteUser.isPending}
+      {/* Disable Dialog */}
+      <ConfirmDialog
+        open={showDisableDialog}
+        onOpenChange={setShowDisableDialog}
+        variant="warning"
+        title="Disable User"
+        description={`Are you sure you want to disable ${user.email}? They will lose access immediately.`}
+        confirmLabel="Disable"
+        onConfirm={handleDisable}
+        loading={disableUser.isPending}
+      />
+
+      {/* Archive Dialog */}
+      <ConfirmDialog
+        open={showArchiveDialog}
+        onOpenChange={setShowArchiveDialog}
+        variant="warning"
+        title="Archive User"
+        description={`Are you sure you want to archive ${user.email}? They will lose access immediately.`}
+        confirmLabel="Archive"
+        onConfirm={handleArchive}
+        loading={archiveUser.isPending}
       />
     </div>
   );

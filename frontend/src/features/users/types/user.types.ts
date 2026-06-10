@@ -1,14 +1,12 @@
-export type UserStatus = "ACTIVE" | "INACTIVE" | "PENDING" | "SUSPENDED";
+export type UserStatus = "ACTIVE" | "SUSPENDED" | "DISABLED" | "PENDING" | "ARCHIVED";
 
 export interface User {
   id: string;
   email: string;
-  firstName: string;
-  lastName: string;
-  phone: string | null;
   status: UserStatus;
   isActive: boolean;
   twoFactorEnabled: boolean;
+  twoFactorEnabledAt: string | null;
   lastLoginAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -26,33 +24,24 @@ export interface UserRole {
 }
 
 export interface UserPermission {
-  id: string;
   code: string;
-  name: string;
-  description: string | null;
-  resource: string;
-  action: string;
-  source: "ROLE" | "DIRECT";
-  sourceName: string;
+}
+
+export interface UserSession {
+  id: string;
+  ip: string | null;
+  userAgent: string | null;
+  loginAt: string;
+  logoutAt: string | null;
+  lastActiveAt: string;
+  isRevoked: boolean;
 }
 
 export interface UserSecurityProfile {
   twoFactorEnabled: boolean;
-  twoFactorSetupAt: string | null;
+  twoFactorEnabledAt: string | null;
   lastLoginAt: string | null;
-  lastLoginIp: string | null;
-  failedLoginAttempts: number;
-  accountLockedUntil: string | null;
-  passwordChangedAt: string | null;
-}
-
-export interface UserActivity {
-  id: string;
-  action: string;
-  module: string;
-  ip: string | null;
-  metadata: Record<string, unknown> | null;
-  createdAt: string;
+  activeSessions: UserSession[];
 }
 
 export interface UsersPagination {
@@ -70,41 +59,27 @@ export interface UsersListResponse {
 export interface UsersQueryParams {
   page?: number;
   limit?: number;
-  search?: string;
+  email?: string;
   status?: UserStatus;
-  role?: string;
-  sortBy?: string;
-  sortOrder?: "asc" | "desc";
+  roleCode?: string;
+  createdFrom?: string;
+  createdTo?: string;
+  sortDirection?: "asc" | "desc";
 }
 
 export interface CreateUserData {
   email: string;
-  firstName: string;
-  lastName: string;
-  phone?: string;
   password: string;
-  status: UserStatus;
-  roleIds: string[];
 }
 
 export interface UpdateUserData {
   email?: string;
-  firstName?: string;
-  lastName?: string;
-  phone?: string | null;
-  status?: UserStatus;
 }
 
 export interface AssignRoleData {
   roleId: string;
 }
 
-export interface UsersDashboard {
-  totalUsers: number;
-  activeUsers: number;
-  suspendedUsers: number;
-  pendingUsers: number;
-  recentUsers: number;
-  usersByStatus: Record<UserStatus, number>;
-  usersByRole: Record<string, number>;
+export interface LifecycleActionData {
+  reason?: string;
 }
