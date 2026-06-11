@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,13 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { Clock, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import { Clock, Search, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import type { AuditLogEntry } from "../types";
 import { EmptyState } from "@/components/states/empty-state";
 import { ErrorState } from "@/components/states/error-state";
@@ -84,6 +90,30 @@ export function UserAuditTimeline({
     onFilterChange?.({ event: v || undefined });
   };
 
+  const exportJSON = useCallback(() => {
+    const data = JSON.stringify(auditData, null, 2);
+    downloadFile(data, "audit-export.json", "application/json");
+  }, [auditData]);
+
+  const exportCSV = useCallback(() => {
+    const headers = ["event", "module", "actor", "resourceType", "resourceId", "ip", "date"];
+    const rows = auditData.map((entry) =>
+      headers.map((h) => {
+        const val = h === "actor" ? entry.userId ?? ""
+          : h === "date" ? entry.createdAt
+          : h === "resourceType" ? entry.resourceType ?? ""
+          : h === "resourceId" ? entry.resourceId ?? ""
+          : h === "ip" ? entry.ip ?? ""
+          : h === "event" ? entry.event
+          : h === "module" ? entry.module
+          : "";
+        return `"${val.replace(/"/g, '""')}"`;
+      }).join(",")
+    );
+    const csv = [headers.join(","), ...rows].join("\n");
+    downloadFile(csv, "audit-export.csv", "text/csv");
+  }, [auditData]);
+
   if (isError) {
     return (
       <Card className={className}>
@@ -103,9 +133,27 @@ export function UserAuditTimeline({
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm">Audit Timeline</CardTitle>
-          <Badge variant="secondary" className="text-[10px]">
-            {pagination.total} events
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="text-[10px]">
+              {pagination.total} events
+            </Badge>
+            <DropdownMenu>
+              <DropdownMenuTrigger>
+                <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1">
+                  <Download className="h-3 w-3" />
+                  Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={exportJSON}>
+                  Export JSON
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportCSV}>
+                  Export CSV
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -235,4 +283,16 @@ export function UserAuditTimeline({
 
 function cn(...inputs: (string | undefined | false)[]) {
   return inputs.filter(Boolean).join(" ");
+}
+
+function downloadFile(content: string, filename: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }

@@ -1,9 +1,11 @@
 "use client";
 
-import { use } from "react";
+import { use, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Breadcrumbs } from "@/components/navigation/breadcrumbs";
 import { UserStatusBadge } from "@/components/design-system/status-badge";
 import { UserAvatar } from "@/features/users/components/user-avatar";
 import { UserDetailTabs } from "@/features/users/components/user-detail-tabs";
@@ -19,7 +21,7 @@ import {
 } from "@/features/users/hooks";
 import { ConfirmDialog } from "@/components/design-system/confirm-dialog";
 import { Can } from "@/features/auth";
-import { ArrowLeft, Mail, Calendar, Shield, Activity, Clock } from "lucide-react";
+import { Mail, Calendar, Shield, Activity, Clock } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import type { UserStatus } from "@/features/users/types";
@@ -30,6 +32,10 @@ interface UserDetailPageProps {
 
 export default function UserDetailPage({ params }: UserDetailPageProps) {
   const { id } = use(params);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const activeTab = searchParams.get("tab") || "overview";
+
   const [showSuspendDialog, setShowSuspendDialog] = useState(false);
   const [showDisableDialog, setShowDisableDialog] = useState(false);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
@@ -42,6 +48,17 @@ export default function UserDetailPage({ params }: UserDetailPageProps) {
   const suspendUser = useSuspendUser(id);
   const disableUser = useDisableUser(id);
   const archiveUser = useArchiveUser(id);
+
+  const handleTabChange = useCallback((tab: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (tab === "overview") {
+      params.delete("tab");
+    } else {
+      params.set("tab", tab);
+    }
+    const query = params.toString();
+    router.replace(`/users/${id}${query ? `?${query}` : ""}`, { scroll: false });
+  }, [id, router, searchParams]);
 
   const handleSuspend = async () => {
     await suspendUser.mutateAsync({});
@@ -92,10 +109,7 @@ export default function UserDetailPage({ params }: UserDetailPageProps) {
         <p className="text-lg font-medium text-muted-foreground">User not found</p>
         <p className="text-sm text-muted-foreground/70 mb-4">The requested user does not exist or you do not have access.</p>
         <Link href="/users">
-          <Button variant="outline">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Users
-          </Button>
+          <Button variant="outline">Back to Users</Button>
         </Link>
       </div>
     );
@@ -106,12 +120,7 @@ export default function UserDetailPage({ params }: UserDetailPageProps) {
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center gap-4">
-        <Link href="/users">
-          <Button variant="ghost" size="sm" className="h-8">
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Back
-          </Button>
-        </Link>
+        <Breadcrumbs segmentLabels={{ [id]: user.email }} />
       </div>
 
       {/* User Header Card */}
@@ -172,6 +181,8 @@ export default function UserDetailPage({ params }: UserDetailPageProps) {
         user={user}
         permissions={permissions ?? []}
         securityProfile={securityProfile ?? null}
+        activeTab={activeTab}
+        onTabChange={handleTabChange}
       />
 
       <ConfirmDialog

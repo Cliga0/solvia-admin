@@ -1,17 +1,19 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { PageHeader, StatCard } from "@/components/design-system";
-import { DataTable, FilterBar } from "@/components/tables";
+import { DataTable, FilterBar, BulkActions } from "@/components/tables";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SkeletonCard, SkeletonTable } from "@/components/ui/skeleton";
 import { UserStatusBadge } from "@/components/design-system/status-badge";
-import { ConfirmDialog } from "@/components/design-system/confirm-dialog";
+import { ConfirmDialog, BulkSuspendConfirmDialog } from "@/components/design-system/confirm-dialog";
 import { EmptyState } from "@/components/states/empty-state";
 import { ErrorState } from "@/components/states/error-state";
+import { Breadcrumbs } from "@/components/navigation/breadcrumbs";
 import { Can } from "@/features/auth";
 import { UserNameCell } from "@/features/users/components/user-avatar";
 import { UserStatusActions } from "@/features/users/components/user-status-actions";
@@ -25,25 +27,40 @@ import {
   useDisableUser,
   useArchiveUser,
 } from "@/features/users/hooks";
-import { Plus, Users as UsersIcon, UserCheck, UserX, Clock, Ban, Archive } from "lucide-react";
+import { usersApi } from "@/features/users/api";
+import { queryKeys } from "@/lib/query/query-keys";
+import { notification } from "@/lib/notifications";
+import { Plus, Users as UsersIcon, UserCheck, UserX, Clock, Ban, Archive, Shield } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { User, UserStatus, UsersQueryParams } from "@/features/users/types";
 import type { CreateUserInput, UpdateUserInput } from "@/features/users/schemas";
+import type { BulkAction } from "@/components/tables/bulk-actions";
 
 export default function UsersPage() {
+  const queryClient = useQueryClient();
   const [params, setParams] = useState<UsersQueryParams>({ page: 1, limit: 20 });
   const [emailFilter, setEmailFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<UserStatus | undefined>();
   const [roleCodeFilter, setRoleCodeFilter] = useState("");
   const [createdFrom, setCreatedFrom] = useState("");
   const [createdTo, setCreatedTo] = useState("");
-  const [, setSelectedRows] = useState<string[]>([]);  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [selectedRows, setSelectedRows] = useState<string[]>([]);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [suspendingUser, setSuspendingUser] = useState<User | null>(null);
   const [disablingUser, setDisablingUser] = useState<User | null>(null);
   const [archivingUser, setArchivingUser] = useState<User | null>(null);
   const [drawerUserId, setDrawerUserId] = useState<string | null>(null);
   const [showDrawer, setShowDrawer] = useState(false);
+
+  // Bulk operation states
+  const [bulkSuspendOpen, setBulkSuspendOpen] = useState(false);
+  const [bulkDisableOpen, setBulkDisableOpen] = useState(false);
+  const [bulkArchiveOpen, setBulkArchiveOpen] = useState(false);
+  const [bulkRoleOpen, setBulkRoleOpen] = useState(false);
+  const [bulkRoleId, setBulkRoleId] = useState("");
+  const [bulkReason, setBulkReason] = useState("");
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   const { data: usersData, isLoading: usersLoading, isError: usersError, error } = useUsers({
     ...params,
@@ -71,6 +88,155 @@ export default function UsersPage() {
       setEditingUser(user);
     }
   };
+
+  const invalidateUsers = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.users.all() });
+  }, [queryClient]);
+
+  const handleBulkSuspend = useCallback(async () => {
+    setBulkLoading(true);
+    try {
+      const results = await Promise.allSettled(
+        selectedRows.map((id) => usersApi.suspend(id, { reason: bulkReason || undefined }))
+      );
+      const failed = results.filter((r) => r.status === "rejected").length;
+      invalidateUsers();
+      setSelectedRows([]);
+      setBulkSuspendOpen(false);
+      setBulkReason("");
+      if (failed > 0) {
+        notification.error(`Failed to suspend ${failed} user(s)`);
+      } else {
+        notification.success(`Suspended ${selectedRows.length} user(s)`);
+      }
+    } finally {
+      setBulkLoading(false);
+    }
+  }, [selectedRows, bulkReason, invalidateUsers]);
+
+  const handleBulkDisable = useCallback(async () => {
+    setBulkLoading(true);
+    try {
+      const results = await Promise.allSettled(
+        selectedRows.map((id) => usersApi.disable(id, { reason: bulkReason || undefined }))
+      );
+      const failed = results.filter((r) => r.status === "rejected").length;
+      invalidateUsers();
+      setSelectedRows([]);
+      setBulkDisableOpen(false);
+      setBulkReason("");
+      if (failed > 0) {
+        notification.error(`Failed to disable ${failed} user(s)`);
+      } else {
+        notification.success(`Disabled ${selectedRows.length} user(s)`);
+      }
+    } finally {
+      setBulkLoading(false);
+    }
+  }, [selectedRows, bulkReason, invalidateUsers]);
+
+  const handleBulkArchive = useCallback(async () => {
+    setBulkLoading(true);
+    try {
+      const results = await Promise.allSettled(
+        selectedRows.map((id) => usersApi.archive(id, { reason: bulkReason || undefined }))
+      );
+      const failed = results.filter((r) => r.status === "rejected").length;
+      invalidateUsers();
+      setSelectedRows([]);
+      setBulkArchiveOpen(false);
+      setBulkReason("");
+      if (failed > 0) {
+        notification.error(`Failed to archive ${failed} user(s)`);
+      } else {
+        notification.success(`Archived ${selectedRows.length} user(s)`);
+      }
+    } finally {
+      setBulkLoading(false);
+    }
+  }, [selectedRows, bulkReason, invalidateUsers]);
+
+  const handleBulkActivate = useCallback(async () => {
+    setBulkLoading(true);
+    try {
+      const results = await Promise.allSettled(
+        selectedRows.map((id) => usersApi.activate(id))
+      );
+      const failed = results.filter((r) => r.status === "rejected").length;
+      invalidateUsers();
+      setSelectedRows([]);
+      if (failed > 0) {
+        notification.error(`Failed to activate ${failed} user(s)`);
+      } else {
+        notification.success(`Activated ${selectedRows.length} user(s)`);
+      }
+    } finally {
+      setBulkLoading(false);
+    }
+  }, [selectedRows, invalidateUsers]);
+
+  const handleBulkAssignRole = useCallback(async () => {
+    if (!bulkRoleId) return;
+    setBulkLoading(true);
+    try {
+      const results = await Promise.allSettled(
+        selectedRows.map((id) => usersApi.assignRole(id, { roleId: bulkRoleId }))
+      );
+      const failed = results.filter((r) => r.status === "rejected").length;
+      invalidateUsers();
+      setSelectedRows([]);
+      setBulkRoleOpen(false);
+      setBulkRoleId("");
+      if (failed > 0) {
+        notification.error(`Failed to assign role to ${failed} user(s)`);
+      } else {
+        notification.success(`Assigned role to ${selectedRows.length} user(s)`);
+      }
+    } finally {
+      setBulkLoading(false);
+    }
+  }, [selectedRows, bulkRoleId, invalidateUsers]);
+
+  const bulkActions: BulkAction[] = useMemo(() => [
+    {
+      key: "activate",
+      label: "Activate",
+      icon: <UserCheck className="h-3.5 w-3.5" />,
+      onClick: handleBulkActivate,
+      disabled: bulkLoading,
+    },
+    {
+      key: "suspend",
+      label: "Suspend",
+      icon: <Ban className="h-3.5 w-3.5" />,
+      variant: "destructive",
+      onClick: () => setBulkSuspendOpen(true),
+      disabled: bulkLoading,
+    },
+    {
+      key: "disable",
+      label: "Disable",
+      icon: <UserX className="h-3.5 w-3.5" />,
+      variant: "destructive",
+      onClick: () => setBulkDisableOpen(true),
+      disabled: bulkLoading,
+    },
+    {
+      key: "archive",
+      label: "Archive",
+      icon: <Archive className="h-3.5 w-3.5" />,
+      variant: "destructive",
+      onClick: () => setBulkArchiveOpen(true),
+      disabled: bulkLoading,
+    },
+    {
+      key: "assign-role",
+      label: "Assign Role",
+      icon: <Shield className="h-3.5 w-3.5" />,
+      onClick: () => setBulkRoleOpen(true),
+      disabled: bulkLoading,
+    },
+  ], [handleBulkActivate, bulkLoading]);
 
   const columns: ColumnDef<User>[] = useMemo(() => [
     {
@@ -170,7 +336,6 @@ export default function UsersPage() {
     { value: "ARCHIVED", label: "Archived" },
   ];
 
-  // Compute KPIs from list data
   const kpis = useMemo(() => {
     const data = usersData?.data ?? [];
     return {
@@ -185,6 +350,8 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6 p-6">
+      <Breadcrumbs />
+
       <PageHeader
         title="User Management"
         description="Manage internal Solvia users, roles, and permissions"
@@ -204,36 +371,12 @@ export default function UsersPage() {
           Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)
         ) : (
           <>
-            <StatCard
-              title="Total Users"
-              value={kpis.total}
-              icon={UsersIcon}
-            />
-            <StatCard
-              title="Active"
-              value={kpis.active}
-              icon={UserCheck}
-            />
-            <StatCard
-              title="Suspended"
-              value={kpis.suspended}
-              icon={Ban}
-            />
-            <StatCard
-              title="Disabled"
-              value={kpis.disabled}
-              icon={UserX}
-            />
-            <StatCard
-              title="Archived"
-              value={kpis.archived}
-              icon={Archive}
-            />
-            <StatCard
-              title="2FA Enabled"
-              value={kpis.twoFA}
-              icon={Clock}
-            />
+            <StatCard title="Total Users" value={kpis.total} icon={UsersIcon} />
+            <StatCard title="Active" value={kpis.active} icon={UserCheck} />
+            <StatCard title="Suspended" value={kpis.suspended} icon={Ban} />
+            <StatCard title="Disabled" value={kpis.disabled} icon={UserX} />
+            <StatCard title="Archived" value={kpis.archived} icon={Archive} />
+            <StatCard title="2FA Enabled" value={kpis.twoFA} icon={Clock} />
           </>
         )}
       </div>
@@ -268,7 +411,6 @@ export default function UsersPage() {
             />
           </div>
 
-          {/* Advanced Filters */}
           <div className="grid gap-3 md:grid-cols-3">
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">Role Code</Label>
@@ -299,6 +441,12 @@ export default function UsersPage() {
             </div>
           </div>
         </div>
+
+        <BulkActions
+          selectedCount={selectedRows.length}
+          actions={bulkActions}
+          onClearSelection={() => setSelectedRows([])}
+        />
 
         {usersLoading ? (
           <SkeletonTable rows={10} columns={6} />
@@ -344,7 +492,6 @@ export default function UsersPage() {
         )}
       </div>
 
-      {/* User Detail Drawer */}
       <UserDetailDrawer
         userId={drawerUserId}
         open={showDrawer}
@@ -352,7 +499,6 @@ export default function UsersPage() {
         onEdit={handleEditFromDrawer}
       />
 
-      {/* Create/Edit User Dialog */}
       <Dialog open={showCreateDialog || !!editingUser} onOpenChange={(open) => {
         if (!open) {
           setShowCreateDialog(false);
@@ -363,9 +509,7 @@ export default function UsersPage() {
           <DialogHeader>
             <DialogTitle>{editingUser ? "Edit User" : "Create User"}</DialogTitle>
             <DialogDescription>
-              {editingUser
-                ? "Update user email address"
-                : "Add a new user to the platform"}
+              {editingUser ? "Update user email address" : "Add a new user to the platform"}
             </DialogDescription>
           </DialogHeader>
           <UserForm
@@ -381,7 +525,6 @@ export default function UsersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Suspend Dialog */}
       <ConfirmDialog
         open={!!suspendingUser}
         onOpenChange={(open) => !open && setSuspendingUser(null)}
@@ -393,7 +536,6 @@ export default function UsersPage() {
         loading={suspendUser.isPending}
       />
 
-      {/* Disable Dialog */}
       <ConfirmDialog
         open={!!disablingUser}
         onOpenChange={(open) => !open && setDisablingUser(null)}
@@ -405,7 +547,6 @@ export default function UsersPage() {
         loading={disableUser.isPending}
       />
 
-      {/* Archive Dialog */}
       <ConfirmDialog
         open={!!archivingUser}
         onOpenChange={(open) => !open && setArchivingUser(null)}
@@ -416,6 +557,78 @@ export default function UsersPage() {
         onConfirm={() => handleArchive()}
         loading={archiveUser.isPending}
       />
+
+      <BulkSuspendConfirmDialog
+        open={bulkSuspendOpen}
+        onOpenChange={setBulkSuspendOpen}
+        count={selectedRows.length}
+        reason={bulkReason}
+        onReasonChange={setBulkReason}
+        onConfirm={() => handleBulkSuspend()}
+        loading={bulkLoading}
+      />
+
+      <ConfirmDialog
+        open={bulkDisableOpen}
+        onOpenChange={setBulkDisableOpen}
+        variant="danger"
+        title="Bulk Disable Users"
+        description={`Are you sure you want to disable ${selectedRows.length} users? They will lose access immediately.`}
+        confirmLabel="Disable All"
+        onConfirm={handleBulkDisable}
+        loading={bulkLoading}
+      />
+
+      <ConfirmDialog
+        open={bulkArchiveOpen}
+        onOpenChange={setBulkArchiveOpen}
+        variant="danger"
+        title="Bulk Archive Users"
+        description={`Are you sure you want to archive ${selectedRows.length} users? They will lose access immediately.`}
+        confirmLabel="Archive All"
+        onConfirm={handleBulkArchive}
+        loading={bulkLoading}
+      />
+
+      <Dialog open={bulkRoleOpen} onOpenChange={setBulkRoleOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Bulk Assign Role</DialogTitle>
+            <DialogDescription>
+              Assign a role to {selectedRows.length} selected users.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Role ID</Label>
+              <Input
+                placeholder="Enter role UUID"
+                value={bulkRoleId}
+                onChange={(e) => setBulkRoleId(e.target.value)}
+                className="h-8 text-xs"
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => { setBulkRoleOpen(false); setBulkRoleId(""); }}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                className="h-7 text-xs"
+                onClick={handleBulkAssignRole}
+                disabled={!bulkRoleId || bulkLoading}
+              >
+                Assign to {selectedRows.length} Users
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

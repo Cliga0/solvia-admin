@@ -180,3 +180,34 @@ export interface AlertSearchResponse {
   data: SecurityAlert[];
   pagination: UsersPagination;
 }
+
+// Risk History (from GET /security/risk/:userId/history)
+export interface RiskHistoryEntry {
+  id: string;
+  userId: string;
+  riskScore: number;
+  riskLevel: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  breakdown: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export interface RiskTrend {
+  date: string;
+  avgScore: number;
+  maxScore: number;
+  minScore: number;
+}
+
+export interface RiskHistoryResponse {
+  history: RiskHistoryEntry[];
+  trend: RiskTrend[];
+  total: number;
+}
+
+// Alert update (from PATCH /security/alerts/:id)
+export interface UpdateAlertData {
+  status: "OPEN" | "INVESTIGATING" | "RESOLVED" | "FALSE_POSITIVE";
+  description?: string;
+  resolutionReason?: string;
+  resolutionNotes?: string;
+}

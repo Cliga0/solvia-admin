@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { ChevronRight, Hop as Home } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -13,10 +13,23 @@ interface BreadcrumbItem {
 
 interface BreadcrumbsProps {
   className?: string;
+  /** Override labels for dynamic segments (e.g. user email for UUID segments) */
+  segmentLabels?: Record<string, string>;
 }
 
-export function Breadcrumbs({ className }: BreadcrumbsProps) {
+const TAB_LABELS: Record<string, string> = {
+  overview: "Overview",
+  sessions: "Sessions",
+  security: "Security",
+  audit: "Audit",
+  risk: "Risk",
+  roles: "Roles",
+  alerts: "Alerts",
+};
+
+export function Breadcrumbs({ className, segmentLabels }: BreadcrumbsProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [items, setItems] = useState<BreadcrumbItem[]>([]);
 
   useEffect(() => {
@@ -33,7 +46,9 @@ export function Breadcrumbs({ className }: BreadcrumbsProps) {
       currentPath += `/${segments[i]}`;
       const isLast = i === segments.length - 1;
 
-      const label = formatSegment(segments[i]);
+      const label =
+        segmentLabels?.[segments[i]] ??
+        formatSegment(segments[i]);
 
       crumbs.push({
         label,
@@ -41,8 +56,14 @@ export function Breadcrumbs({ className }: BreadcrumbsProps) {
       });
     }
 
+    // Append tab breadcrumb from URL search params
+    const tab = searchParams.get("tab");
+    if (tab && TAB_LABELS[tab]) {
+      crumbs.push({ label: TAB_LABELS[tab] });
+    }
+
     setItems(crumbs);
-  }, [pathname]);
+  }, [pathname, searchParams, segmentLabels]);
 
   if (items.length === 0) return null;
 

@@ -15,6 +15,9 @@ import type {
   SecurityTimeline,
   AlertQueryParams,
   AlertSearchResponse,
+  RiskHistoryResponse,
+  UpdateAlertData,
+  SecurityAlert,
 } from "../types";
 
 export const usersApi = {
@@ -141,5 +144,20 @@ export const usersApi = {
     if (params.sortDirection) queryParams.set("sortDirection", params.sortDirection);
     const queryString = queryParams.toString();
     return apiClient.get<AlertSearchResponse>(`/security/alerts${queryString ? `?${queryString}` : ""}`);
+  },
+
+  // Alert Detail (GET /security/alerts/:id)
+  getAlertDetail(alertId: string): Promise<SecurityAlert> {
+    return apiClient.get<SecurityAlert>(`/security/alerts/${alertId}`);
+  },
+
+  // Alert Update (PATCH /security/alerts/:id)
+  updateAlert(alertId: string, data: UpdateAlertData): Promise<SecurityAlert> {
+    return apiClient.patch<SecurityAlert>(`/security/alerts/${alertId}`, data);
+  },
+
+  // Risk History (GET /security/risk/:userId/history)
+  getUserRiskHistory(userId: string): Promise<RiskHistoryResponse> {
+    return apiClient.get<RiskHistoryResponse>(`/security/risk/${userId}/history`);
   },
 };

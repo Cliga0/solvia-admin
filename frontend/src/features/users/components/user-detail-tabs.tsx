@@ -17,6 +17,7 @@ import { UserSessionsTable, UserSessionsTableSkeleton } from "./user-sessions-ta
 import { UserAuditTimeline } from "./user-audit-timeline";
 import { UserSecurityAlertsPanel } from "./user-security-alerts-panel";
 import { IntegrationPlaceholder } from "./integration-placeholder";
+import { RiskHistoryChart } from "./risk-history-chart";
 import {
   Shield,
   Key,
@@ -43,6 +44,7 @@ import {
   useUserAuditLogs,
   useUserRiskProfile,
   useUserAlerts,
+  useUserRiskHistory,
   useAssignRole,
   useRemoveRole,
   useForceLogout,
@@ -55,11 +57,16 @@ import {
 import { apiClient } from "@/lib/api/api-client";
 import { assignRoleSchema, type AssignRoleInput } from "../schemas";
 
+const VALID_TABS = ["overview", "sessions", "security", "audit", "risk", "roles", "alerts"] as const;
+type TabValue = (typeof VALID_TABS)[number];
+
 interface UserDetailTabsProps {
   userId: string;
   user: UserWithRoles;
   permissions: string[];
   securityProfile: UserSecurityProfile | null;
+  activeTab?: string;
+  onTabChange?: (tab: string) => void;
   className?: string;
 }
 
@@ -68,8 +75,12 @@ export function UserDetailTabs({
   user,
   permissions,
   securityProfile,
+  activeTab = "overview",
+  onTabChange,
   className,
 }: UserDetailTabsProps) {
+  const currentTab: TabValue = VALID_TABS.includes(activeTab as TabValue) ? (activeTab as TabValue) : "overview";
+
   const [showAssignRole, setShowAssignRole] = useState(false);
   const [selectedRoleId, setSelectedRoleId] = useState("");
   const [showResetPassword, setShowResetPassword] = useState(false);
@@ -106,6 +117,7 @@ export function UserDetailTabs({
   };
   const auditQuery = useUserAuditLogs(userId, auditParams);
   const riskQuery = useUserRiskProfile(userId);
+  const riskHistoryQuery = useUserRiskHistory(userId);
   const alertsQuery = useUserAlerts(userId);
 
   const userRoles = rolesQuery.data ?? user.roles ?? [];
@@ -161,7 +173,7 @@ export function UserDetailTabs({
   ];
 
   return (
-    <Tabs defaultValue="overview" className={className}>
+    <Tabs value={currentTab} onValueChange={onTabChange} className={className}>
       <TabsList className="grid w-full grid-cols-7">
         <TabsTrigger value="overview" className="text-xs">Overview</TabsTrigger>
         <TabsTrigger value="sessions" className="text-xs">Sessions</TabsTrigger>
@@ -172,7 +184,7 @@ export function UserDetailTabs({
         <TabsTrigger value="alerts" className="text-xs">Alerts</TabsTrigger>
       </TabsList>
 
-      {/* PHASE A — Overview Center */}
+      {/* Overview */}
       <TabsContent value="overview" className="mt-4 space-y-4">
         <UserKpiGrid items={kpiItems} columns={6} />
 
@@ -226,7 +238,7 @@ export function UserDetailTabs({
         </Card>
       </TabsContent>
 
-      {/* PHASE B — Active Sessions Center */}
+      {/* Sessions */}
       <TabsContent value="sessions" className="mt-4">
         {securityProfile ? (
           <UserSessionsTable
@@ -239,9 +251,8 @@ export function UserDetailTabs({
         )}
       </TabsContent>
 
-      {/* PHASE C — Security Center Enhancement */}
+      {/* Security */}
       <TabsContent value="security" className="mt-4 space-y-4">
-        {/* 2FA Status */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Two-Factor Authentication</CardTitle>
@@ -281,7 +292,6 @@ export function UserDetailTabs({
           </CardContent>
         </Card>
 
-        {/* Security Summary KPIs */}
         <UserKpiGrid
           items={[
             { label: "2FA Status", value: user.twoFactorEnabled ? "Enabled" : "Disabled", icon: Lock, variant: user.twoFactorEnabled ? "success" as const : "warning" as const },
@@ -291,7 +301,6 @@ export function UserDetailTabs({
           columns={3}
         />
 
-        {/* Security Actions */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Security Actions</CardTitle>
@@ -370,7 +379,6 @@ export function UserDetailTabs({
           </CardContent>
         </Card>
 
-        {/* Confirm Dialogs */}
         <ConfirmDialog
           open={showForceLogout}
           onOpenChange={setShowForceLogout}
@@ -470,7 +478,7 @@ export function UserDetailTabs({
         )}
       </TabsContent>
 
-      {/* PHASE D — Audit Center */}
+      {/* Audit */}
       <TabsContent value="audit" className="mt-4">
         <UserAuditTimeline
           auditData={auditQuery.data?.data ?? []}
@@ -488,7 +496,7 @@ export function UserDetailTabs({
         />
       </TabsContent>
 
-      {/* PHASE E — Risk Profile Center */}
+      {/* Risk */}
       <TabsContent value="risk" className="mt-4 space-y-4">
         {riskQuery.isLoading ? (
           <Card>
@@ -504,6 +512,19 @@ export function UserDetailTabs({
               lastCalculatedAt={riskQuery.data.lastCalculatedAt}
             />
             <RiskBreakdownGrid breakdown={riskQuery.data.breakdown} />
+            {/* Risk History Chart */}
+            {riskHistoryQuery.isLoading ? (
+              <Card>
+                <CardContent className="p-4">
+                  <Skeleton className="h-48 w-full" />
+                </CardContent>
+              </Card>
+            ) : riskHistoryQuery.data && riskHistoryQuery.data.history.length > 0 ? (
+              <RiskHistoryChart
+                history={riskHistoryQuery.data.history}
+                trend={riskHistoryQuery.data.trend}
+              />
+            ) : null}
           </>
         ) : (
           <IntegrationPlaceholder
@@ -514,7 +535,7 @@ export function UserDetailTabs({
         )}
       </TabsContent>
 
-      {/* PHASE F (partial) + Roles Tab */}
+      {/* Roles */}
       <TabsContent value="roles" className="mt-4 space-y-4">
         <Card>
           <CardHeader className="pb-2">
@@ -633,11 +654,12 @@ export function UserDetailTabs({
         </Card>
       </TabsContent>
 
-      {/* PHASE F — Security Alerts Center */}
+      {/* Alerts */}
       <TabsContent value="alerts" className="mt-4">
         <UserSecurityAlertsPanel
           alerts={alertsQuery.data?.data ?? []}
           isLoading={alertsQuery.isLoading}
+          userId={userId}
         />
       </TabsContent>
     </Tabs>

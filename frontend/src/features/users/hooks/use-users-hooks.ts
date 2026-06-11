@@ -10,6 +10,7 @@ import type {
   AssignRoleData,
   LifecycleActionData,
   AuditQueryParams,
+  UpdateAlertData,
 } from "../types";
 import { notification } from "@/lib/notifications";
 
@@ -284,6 +285,44 @@ export function useRemoveRole(userId: string) {
     },
     onError: (error: Error) => {
       notification.error(error.message || "Failed to remove role");
+    },
+  });
+}
+
+// Risk History
+
+export function useUserRiskHistory(userId: string) {
+  return useQuery({
+    queryKey: [queryKeys.users.detail(userId), "risk-history"],
+    queryFn: () => usersApi.getUserRiskHistory(userId),
+    enabled: !!userId,
+  });
+}
+
+// Alert Detail
+
+export function useAlertDetail(alertId: string) {
+  return useQuery({
+    queryKey: queryKeys.security.alert(alertId),
+    queryFn: () => usersApi.getAlertDetail(alertId),
+    enabled: !!alertId,
+  });
+}
+
+// Alert Actions
+
+export function useUpdateAlert(alertId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: UpdateAlertData) => usersApi.updateAlert(alertId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.security.alerts() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.security.alert(alertId) });
+      notification.success("Alert updated successfully");
+    },
+    onError: (error: Error) => {
+      notification.error(error.message || "Failed to update alert");
     },
   });
 }
