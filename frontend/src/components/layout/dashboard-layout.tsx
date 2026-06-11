@@ -10,6 +10,7 @@ import {
   Settings,
   LogOut,
   ChevronRight,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ const NAV_ITEMS = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Security", href: "/security", icon: Shield },
   { label: "Settings", href: "/settings", icon: Settings },
+  { label: "Users", href: "/users", icon: Users },
 ];
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -61,14 +63,17 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           <div className="flex h-7 w-7 items-center justify-center rounded-md bg-foreground text-background">
             <Shield className="h-4 w-4" />
           </div>
-          <span className="text-sm font-semibold tracking-tight">Solvia Admin</span>
+          <span className="text-sm font-semibold tracking-tight">
+            Solvia Admin
+          </span>
         </div>
 
         {/* Navigation */}
         <nav className="flex flex-1 flex-col gap-0.5 p-3">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+            const isActive =
+              pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <Link
                 key={item.href}
@@ -82,7 +87,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               >
                 <Icon className="h-4 w-4 shrink-0" />
                 {item.label}
-                {isActive && <ChevronRight className="ml-auto h-3 w-3 opacity-50" />}
+                {isActive && (
+                  <ChevronRight className="ml-auto h-3 w-3 opacity-50" />
+                )}
               </Link>
             );
           })}

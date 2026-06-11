@@ -49,10 +49,12 @@ export function UserStatusActions({
   return (
     <div className={className}>
       <DropdownMenu>
-        <DropdownMenuTrigger>
-          <Button variant="outline" size="sm" className="h-7 w-7 p-0">
-            <MoreHorizontal className="h-3.5 w-3.5" />
-          </Button>
+        <DropdownMenuTrigger
+          render={
+            <Button variant="outline" size="sm" className="h-7 w-7 p-0" />
+          }
+        >
+          <MoreHorizontal className="h-3.5 w-3.5" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel className="text-xs">Lifecycle</DropdownMenuLabel>
