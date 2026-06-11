@@ -20,4 +20,7 @@ export {
   useAdminDisable2FA,
   useAssignRole,
   useRemoveRole,
+  useUserRiskHistory,
+  useAlertDetail,
+  useUpdateAlert,
 } from "./use-users-hooks";

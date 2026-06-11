@@ -8,3 +8,5 @@ export { UserSessionsTable, UserSessionsTableSkeleton } from "./user-sessions-ta
 export { UserAuditTimeline } from "./user-audit-timeline";
 export { UserSecurityAlertsPanel } from "./user-security-alerts-panel";
 export { IntegrationPlaceholder } from "./integration-placeholder";
+export { RiskHistoryChart } from "./risk-history-chart";
+export { AlertDetailDrawer } from "./alert-detail-drawer";
